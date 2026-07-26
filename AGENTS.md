@@ -64,37 +64,6 @@ Examples include:
 
 The statistics are shown in a compact WPF overlay during the match. The final summary remains visible after the match until the next match begins.
 
-### This repository is not BGMMRPlugin
-
-Never confuse this project with `BGMMRPlugin` or `HDT-BGMMRPlugin`.
-
-This project does **not** primarily:
-
-- display opponent player names;
-- look up player MMR;
-- display leaderboard MMR;
-- display opponent Tavern Tiers beside avatars;
-- mark the last opponent on the Battlegrounds leaderboard;
-- track moving leaderboard avatar positions.
-
-Those features belong to another plugin.
-
-### This repository is not BoardStatsPlugin
-
-Never assume this project is `BoardStatsPlugin`.
-
-This plugin tracks cumulative match statistics. It is not primarily a board layout or board-only statistics plugin.
-
-When writing documentation, commit messages, comments, release notes, or code, always refer to the correct project:
-
-```text
-Repository: HDT-FinalStatsPlugin
-Plugin concept: Battlegrounds cumulative match statistics
-HDT display name: Battlegrounds Final Stats
-```
-
----
-
 ## 3. Canonical DLL and release name
 
 The canonical compiled plugin filename is:
