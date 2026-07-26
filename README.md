@@ -1,6 +1,6 @@
-# FinalStatsPlugin
+# HDT-FinalStatsPlugin
 
-**FinalStatsPlugin** is a plugin for **Hearthstone Deck Tracker**, designed for **Battlegrounds**.
+**HDT-FinalStatsPlugin** is a plugin for **Hearthstone Deck Tracker**, designed for **Battlegrounds**.
 
 It tracks useful statistics during a match and displays them in a compact overlay. At the end of the game, the final summary remains visible until the next match starts.
 
@@ -25,7 +25,7 @@ The overlay can be shown or hidden during the game with a dedicated button.
 ## Installation
 
 1. Download the latest release.
-2. Copy `FinalStatsPlugin.dll` into your Hearthstone Deck Tracker `Plugins` folder.
+2. Copy `HDT-FinalStatsPlugin.dll` into your Hearthstone Deck Tracker `Plugins` folder.
 3. Open HDT.
 4. Go to `Options > Tracker > Plugins`.
 5. Enable **Battlegrounds Final Stats**.
@@ -43,7 +43,7 @@ Use `Build.bat` to compile the plugin against your local HDT installation.
 
 ## Status
 
-FinalStatsPlugin is still in active development.
+HDT-FinalStatsPlugin is still in active development.
 
 Some statistics may require adjustments after Hearthstone or HDT updates. Bug reports, test results and suggestions are welcome.
 

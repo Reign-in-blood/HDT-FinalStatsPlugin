@@ -1,5 +1,5 @@
 Structure du dossier pour le volume Software
-Le num‚ro de s‚rie du volume est 001B-09B2
+Le numÃ©ro de sÃ©rie du volume est 001B-09B2
 X:.
 |   .gitignore
 |   arborescence.txt
@@ -12,11 +12,11 @@ X:.
 |   
 +---bin
 |   \---Release
-|           FinalStatsPlugin.dll
-|           FinalStatsPlugin.pdb
+|           HDT-FinalStatsPlugin.dll
+|           HDT-FinalStatsPlugin.pdb
 |           
 +---dist
-|       FinalStatsPlugin.dll
+|       HDT-FinalStatsPlugin.dll
 |       LA_DLL_SERA_CREEE_ICI.txt
 |       
 +---lib
@@ -40,7 +40,7 @@ X:.
                 FinalStatsPlugin.csproj.AssemblyReference.cache
                 FinalStatsPlugin.csproj.CoreCompileInputs.cache
                 FinalStatsPlugin.csproj.FileListAbsolute.txt
-                FinalStatsPlugin.dll
+                HDT-FinalStatsPlugin.dll
                 FinalStatsPlugin.GeneratedMSBuildEditorConfig.editorconfig
-                FinalStatsPlugin.pdb
+                HDT-FinalStatsPlugin.pdb
                 

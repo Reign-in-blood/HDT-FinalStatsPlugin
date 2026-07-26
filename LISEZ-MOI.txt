@@ -1,8 +1,8 @@
-﻿FINALSTATSPLUGIN v0.1.23 - PROTOTYPE
-==================================
+﻿HDT-FINALSTATSPLUGIN v0.1.24 - PROTOTYPE
+=======================================
 
 Nom dans HDT : Battlegrounds Final Stats
-DLL generee : dist\FinalStatsPlugin.dll
+DLL generee : dist\HDT-FinalStatsPlugin.dll
 
 FONCTIONNEMENT
 --------------
@@ -15,6 +15,15 @@ apres la fin de la partie. Un bouton de 250 x 30 pixels est place sous le
 panneau. Il affiche "Hide combat stats" quand le panneau est visible et
 "Show combat stats" quand il est masque. Le bouton reste visible afin de
 pouvoir rouvrir le panneau.
+
+
+NOUVEAU DANS LA VERSION 0.1.24
+--------------------------------
+- Le fichier compile porte maintenant le nom canonique
+  HDT-FinalStatsPlugin.dll dans bin\Release et dans dist.
+- Build.bat verifie, copie et affiche desormais exactement ce meme nom.
+- Aucun chemin d'installation HDT n'est inscrit dans le script : le chemin
+  est fourni en argument ou demande a l'utilisateur au lancement.
 
 
 NOUVEAU DANS LA VERSION 0.1.23

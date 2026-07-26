@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
-title FinalStatsPlugin - Build
+title HDT-FinalStatsPlugin - Build
 
 echo.
 echo ============================================================
-echo   FinalStatsPlugin - creation de la DLL
+echo   HDT-FinalStatsPlugin - creation de la DLL
 echo ============================================================
 echo.
 
@@ -13,6 +13,9 @@ set "PROJECT_DIR=%~dp0"
 set "INPUT_PATH=%~1"
 set "MSBUILD="
 set "OUTPUT_DIR=%PROJECT_DIR%dist"
+set "LEGACY_BIN_DLL=%PROJECT_DIR%bin\Release\FinalStatsPlugin.dll"
+set "LEGACY_BIN_PDB=%PROJECT_DIR%bin\Release\FinalStatsPlugin.pdb"
+set "LEGACY_OUTPUT_DLL=%OUTPUT_DIR%\FinalStatsPlugin.dll"
 set "RESULT_FILE=%TEMP%\FinalStatsPlugin_HDT_%RANDOM%_%RANDOM%.txt"
 set "ERROR_FILE=%TEMP%\FinalStatsPlugin_HDT_ERROR_%RANDOM%_%RANDOM%.txt"
 
@@ -145,18 +148,38 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set "BUILT_DLL=%PROJECT_DIR%bin\Release\FinalStatsPlugin.dll"
+set "BUILT_DLL=%PROJECT_DIR%bin\Release\HDT-FinalStatsPlugin.dll"
 
 if not exist "%BUILT_DLL%" (
     echo.
-    echo ERREUR : FinalStatsPlugin.dll n'a pas ete generee.
+    echo ERREUR : HDT-FinalStatsPlugin.dll n'a pas ete generee.
+    echo.
+    pause
+    exit /b 1
+)
+
+if exist "%LEGACY_BIN_DLL%" del /Q "%LEGACY_BIN_DLL%"
+if exist "%LEGACY_BIN_PDB%" del /Q "%LEGACY_BIN_PDB%"
+if exist "%LEGACY_OUTPUT_DLL%" del /Q "%LEGACY_OUTPUT_DLL%"
+
+if exist "%LEGACY_BIN_DLL%" (
+    echo.
+    echo ERREUR : impossible de supprimer l'ancienne DLL dans bin\Release.
+    echo.
+    pause
+    exit /b 1
+)
+
+if exist "%LEGACY_OUTPUT_DLL%" (
+    echo.
+    echo ERREUR : impossible de supprimer l'ancienne DLL dans dist.
     echo.
     pause
     exit /b 1
 )
 
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
-copy /Y "%BUILT_DLL%" "%OUTPUT_DIR%\FinalStatsPlugin.dll" >nul
+copy /Y "%BUILT_DLL%" "%OUTPUT_DIR%\HDT-FinalStatsPlugin.dll" >nul
 
 if errorlevel 1 (
     echo.
