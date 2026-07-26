@@ -10,6 +10,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -28,7 +29,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 25);
+        public Version Version => new Version(0, 1, 26);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -36,35 +37,52 @@ namespace FinalStatsPlugin
         // ------------------------------------------------------------
 
         private const double PanelWidth = 250;
-        private const double PanelHeight = 855;
+        private const double PanelHeight = 750;
         private const double PanelRight = 15;
         private const double PanelBottom = 50;
         private const double ToggleButtonHeight = 30;
         private const double ToggleButtonGap = 6;
+        private const double StatRowHeight = 23;
+        private const double CategoryHeaderHeight = 20;
 
         private static readonly Brush PanelBrush =
-            CreateFrozenBrush(Color.FromRgb(0, 0, 0));
+            CreateFrozenBrush(Color.FromArgb(248, 24, 26, 30));
 
         private static readonly Brush BorderBrush =
-            CreateFrozenBrush(Color.FromArgb(170, 255, 255, 255));
+            CreateFrozenBrush(Color.FromArgb(42, 255, 255, 255));
+
+        private static readonly Brush DividerBrush =
+            CreateFrozenBrush(Color.FromArgb(28, 255, 255, 255));
 
         private static readonly Brush TitleBrush =
-            CreateFrozenBrush(Color.FromRgb(240, 190, 55));
+            CreateFrozenBrush(Color.FromRgb(218, 184, 108));
+
+        private static readonly Brush CategoryBrush =
+            CreateFrozenBrush(Color.FromRgb(184, 157, 99));
 
         private static readonly Brush LabelBrush =
-            CreateFrozenBrush(Color.FromRgb(210, 210, 210));
+            CreateFrozenBrush(Color.FromRgb(178, 184, 191));
 
         private static readonly Brush ValueBrush =
-            CreateFrozenBrush(Color.FromRgb(255, 255, 255));
+            CreateFrozenBrush(Color.FromRgb(238, 241, 244));
+
+        private static readonly Brush PositiveBrush =
+            CreateFrozenBrush(Color.FromRgb(91, 203, 154));
+
+        private static readonly Brush NegativeBrush =
+            CreateFrozenBrush(Color.FromRgb(240, 123, 123));
+
+        private static readonly Brush NeutralBrush =
+            CreateFrozenBrush(Color.FromRgb(154, 161, 169));
 
         private static readonly Brush ToggleButtonBrush =
-            CreateFrozenBrush(Color.FromRgb(28, 28, 28));
+            CreateFrozenBrush(Color.FromRgb(30, 33, 38));
 
         private static readonly Brush ToggleButtonHoverBrush =
-            CreateFrozenBrush(Color.FromRgb(48, 48, 48));
+            CreateFrozenBrush(Color.FromRgb(46, 50, 56));
 
         private static readonly Brush ToggleButtonPressedBrush =
-            CreateFrozenBrush(Color.FromRgb(8, 8, 8));
+            CreateFrozenBrush(Color.FromRgb(18, 20, 24));
 
         // ------------------------------------------------------------
         // Overlay controls
@@ -2312,9 +2330,18 @@ namespace FinalStatsPlugin
             if (_panel != null)
                 return;
 
-            Grid root = new Grid();
+            Grid root = new Grid
+            {
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true
+            };
 
-            for (int i = 0; i < 33; i++)
+            TextOptions.SetTextFormattingMode(
+                root,
+                TextFormattingMode.Display
+            );
+
+            for (int i = 0; i < 32; i++)
             {
                 root.RowDefinitions.Add(
                     new RowDefinition
@@ -2326,19 +2353,21 @@ namespace FinalStatsPlugin
 
             TextBlock title = new TextBlock
             {
-                Text = "COMBAT STATS",
+                Text = "FINAL STATS",
+                FontFamily = new FontFamily("Segoe UI"),
                 Foreground = TitleBrush,
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 4),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(2, 0, 0, 4),
+                SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
 
             Border separator = new Border
             {
                 Height = 1,
-                Background = BorderBrush,
+                Background = DividerBrush,
                 Margin = new Thickness(0, 0, 0, 4),
                 IsHitTestVisible = false
             };
@@ -2385,7 +2414,9 @@ namespace FinalStatsPlugin
             AddStatRow(root, 30, "Combat losses", out _combatLossesValue);
             AddStatRow(root, 31, "Combat draws", out _combatDrawsValue);
 
-            AddCategoryHeader(root, 32, "OTHER");
+            _combatWinsValue.Foreground = PositiveBrush;
+            _combatLossesValue.Foreground = NegativeBrush;
+            _combatDrawsValue.Foreground = NeutralBrush;
 
             _panel = new Border
             {
@@ -2394,9 +2425,11 @@ namespace FinalStatsPlugin
                 Background = PanelBrush,
                 BorderBrush = BorderBrush,
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(14, 8, 14, 8),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(12, 8, 12, 8),
                 Child = root,
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
                 IsHitTestVisible = false,
                 Visibility = Visibility.Collapsed
             };
@@ -2407,12 +2440,14 @@ namespace FinalStatsPlugin
             _toggleButtonText = new TextBlock
             {
                 Text = "Hide combat stats",
+                FontFamily = new FontFamily("Segoe UI"),
                 Foreground = ValueBrush,
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
+                SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
 
@@ -2423,9 +2458,11 @@ namespace FinalStatsPlugin
                 Background = ToggleButtonBrush,
                 BorderBrush = BorderBrush,
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(5),
+                CornerRadius = new CornerRadius(7),
                 Child = _toggleButtonText,
                 Cursor = Cursors.Hand,
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
                 IsHitTestVisible = true,
                 Visibility = Visibility.Collapsed
             };
@@ -2504,8 +2541,10 @@ namespace FinalStatsPlugin
         {
             Grid header = new Grid
             {
-                Height = 25,
-                Margin = new Thickness(0, 3, 0, 0),
+                Height = CategoryHeaderHeight,
+                Margin = new Thickness(0, 2, 0, 0),
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
                 IsHitTestVisible = false
             };
 
@@ -2526,18 +2565,20 @@ namespace FinalStatsPlugin
             TextBlock headerText = new TextBlock
             {
                 Text = title,
-                Foreground = TitleBrush,
-                FontSize = 10,
-                FontWeight = FontWeights.Bold,
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = CategoryBrush,
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0),
+                SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
 
             Border line = new Border
             {
                 Height = 1,
-                Background = BorderBrush,
+                Background = DividerBrush,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
@@ -2560,8 +2601,10 @@ namespace FinalStatsPlugin
         {
             Grid row = new Grid
             {
-                Height = 25,
+                Height = StatRowHeight,
                 Margin = new Thickness(0),
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
                 IsHitTestVisible = false
             };
 
@@ -2582,24 +2625,38 @@ namespace FinalStatsPlugin
             TextBlock labelText = new TextBlock
             {
                 Text = label,
+                FontFamily = new FontFamily("Segoe UI"),
                 Foreground = LabelBrush,
-                FontSize = 11,
+                FontSize = 12,
+                FontWeight = FontWeights.Medium,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
+                SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
 
             value = new TextBlock
             {
                 Text = "0",
+                FontFamily = new FontFamily("Segoe UI"),
                 Foreground = ValueBrush,
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Right,
+                SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
+
+            Typography.SetNumeralAlignment(
+                value,
+                FontNumeralAlignment.Tabular
+            );
+            Typography.SetNumeralStyle(
+                value,
+                FontNumeralStyle.Lining
+            );
 
             Grid.SetColumn(labelText, 0);
             Grid.SetColumn(value, 1);
