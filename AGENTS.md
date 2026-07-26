@@ -1,306 +1,496 @@
-# AGENTS.md — FinalStatsPlugin
+# AGENTS.md — HDT-FinalStatsPlugin
 
-## 1. Rôle de ce fichier
+## 1. Purpose and scope
 
-Ce fichier définit les règles permanentes de développement de **FinalStatsPlugin**.
+This file contains the permanent development instructions for the repository:
 
-Il s’applique à l’ensemble du dépôt, sauf si un dossier contient plus tard un fichier `AGENTS.md` plus spécifique.
+```text
+Reign-in-blood/HDT-FinalStatsPlugin
+```
 
-Avant toute modification :
+It applies to the entire repository unless a more specific `AGENTS.md` file is later added inside a subdirectory.
 
-1. lire ce fichier entièrement ;
-2. inspecter les fichiers concernés ;
-3. comprendre le comportement actuel ;
-4. proposer ou effectuer une modification ciblée ;
-5. compiler et vérifier le résultat lorsque l’environnement le permet.
+Before changing any file:
 
-Les instructions explicites données par l’utilisateur pour une tâche précise restent prioritaires.
+1. read this file completely;
+2. inspect the relevant source files;
+3. understand the current behavior;
+4. make the smallest coherent change;
+5. review the complete diff;
+6. compile and test when the environment allows it;
+7. clearly report what was and was not verified.
+
+Direct instructions from the user for a specific task take priority over this file.
 
 ---
 
-## 2. Présentation du projet
+## 2. Project identity — do not confuse this repository
 
-**FinalStatsPlugin** est un plugin Windows pour **Hearthstone Deck Tracker (HDT)**, destiné au mode **Hearthstone Battlegrounds**.
+This repository is **HDT-FinalStatsPlugin**.
 
-Nom affiché dans HDT :
+It is a Windows plugin for **Hearthstone Deck Tracker (HDT)**, designed specifically for **Hearthstone Battlegrounds**.
+
+The plugin displayed inside HDT is currently named:
 
 ```text
 Battlegrounds Final Stats
 ```
 
-Objectifs actuels :
+Its purpose is to collect and display cumulative statistics from the current Battlegrounds match.
 
-- suivre des statistiques pendant une partie de Battlegrounds ;
-- afficher ces statistiques dans un panneau WPF sur l’overlay HDT ;
-- permettre de masquer le panneau pendant la partie ;
-- forcer l’affichage du résumé final après le retour au menu ;
-- conserver un fonctionnement local, léger et lisible ;
-- ne jamais perturber Hearthstone ou HDT en cas d’erreur du plugin.
+Examples include:
 
-Orientation future prévue :
+- gold spent;
+- Tavern refreshes;
+- free refreshes gained;
+- cards bought;
+- minions bought;
+- Tavern spells bought;
+- cards played;
+- minions played;
+- Tavern spells played;
+- Battlecries played;
+- Rally effects triggered;
+- highest minion Attack;
+- highest minion Health;
+- highest combined minion stats;
+- Tavern buff values when detectable;
+- spell-related Tavern buff values when detectable;
+- hero damage dealt;
+- maximum hero damage dealt in one combat;
+- hero damage taken;
+- maximum hero damage taken in one combat;
+- highest turn reached.
 
-- enregistrer un historique structuré des parties et des combats ;
-- stocker les données localement en JSON ;
-- fournir un tableau de bord local en HTML, CSS et JavaScript ;
-- ouvrir ce tableau de bord depuis le menu Plugins de HDT ;
-- ne pas utiliser d’application compagnon `.exe` ;
-- ne pas exiger de serveur local ;
-- ne pas transmettre de données sur Internet.
+The statistics are shown in a compact WPF overlay during the match. The final summary remains visible after the match until the next match begins.
 
----
+### This repository is not BGMMRPlugin
 
-## 3. Profil de l’utilisateur et communication
+Never confuse this project with `BGMMRPlugin` or `HDT-BGMMRPlugin`.
 
-L’utilisateur principal est francophone et débutant en programmation C#/.NET.
+This project does **not** primarily:
 
-Lors des comptes rendus :
+- display opponent player names;
+- look up player MMR;
+- display leaderboard MMR;
+- display opponent Tavern Tiers beside avatars;
+- mark the last opponent on the Battlegrounds leaderboard;
+- track moving leaderboard avatar positions.
 
-- répondre en français ;
-- expliquer concrètement ce qui a été modifié ;
-- éviter le jargon inutile ;
-- ne pas supposer que l’utilisateur connaît Git, Visual Studio, MSBuild ou WPF ;
-- fournir les commandes exactes lorsqu’une action manuelle est nécessaire ;
-- distinguer clairement :
-  - ce qui a été modifié ;
-  - ce qui a été compilé ;
-  - ce qui a été testé ;
-  - ce qui reste à vérifier en partie ;
-- ne jamais prétendre qu’une compilation ou un test a réussi s’il n’a pas réellement été exécuté ;
-- signaler honnêtement les limites de l’environnement.
+Those features belong to another plugin.
 
-Ne pas donner uniquement des fragments de code à copier lorsque la tâche demande une modification complète du projet. Modifier les fichiers du dépôt de manière cohérente.
+### This repository is not BoardStatsPlugin
 
----
+Never assume this project is `BoardStatsPlugin`.
 
-## 4. Structure actuelle du dépôt
+This plugin tracks cumulative match statistics. It is not primarily a board layout or board-only statistics plugin.
 
-Structure de référence :
+When writing documentation, commit messages, comments, release notes, or code, always refer to the correct project:
 
 ```text
+Repository: HDT-FinalStatsPlugin
+Plugin concept: Battlegrounds cumulative match statistics
+HDT display name: Battlegrounds Final Stats
+```
+
+---
+
+## 3. Canonical DLL and release name
+
+The canonical compiled plugin filename is:
+
+```text
+HDT-FinalStatsPlugin.dll
+```
+
+This name must be used consistently in:
+
+- the `.csproj` assembly output;
+- `Build.bat`;
+- the `bin` build result;
+- the `dist` copy;
+- installation instructions;
+- README documentation;
+- release archives;
+- release notes;
+- GitHub releases;
+- diagnostic messages referring to the distributed DLL.
+
+The old output filename:
+
+```text
+FinalStatsPlugin.dll
+```
+
+must not remain as the distributed build artifact.
+
+### Required project configuration
+
+The project file must ultimately contain:
+
+```xml
+<AssemblyName>HDT-FinalStatsPlugin</AssemblyName>
+```
+
+The source namespace may remain:
+
+```csharp
+namespace FinalStatsPlugin
+```
+
+Changing the DLL filename does not require renaming the C# namespace or every internal type.
+
+Do not perform a broad namespace rename only to change the output DLL name.
+
+### Required build paths
+
+Expected Release build output:
+
+```text
+bin\Release\HDT-FinalStatsPlugin.dll
+```
+
+Expected distribution output:
+
+```text
+dist\HDT-FinalStatsPlugin.dll
+```
+
+`Build.bat` must:
+
+1. compile the project;
+2. verify that `bin\Release\HDT-FinalStatsPlugin.dll` exists;
+3. copy it to `dist\HDT-FinalStatsPlugin.dll`;
+4. report that exact path to the user.
+
+Do not allow `Build.bat` to check one filename, copy another filename, and print a third filename.
+
+After any build-script or project-file change, search the repository for stale references:
+
+```text
+FinalStatsPlugin.dll
+```
+
+Any remaining occurrence must be reviewed and either updated or intentionally documented.
+
+---
+
+## 4. Current repository structure
+
+Current primary files:
+
+```text
+AGENTS.md
 FinalStatsPlugin.sln
 FinalStatsPlugin.csproj
 FinalStatsPlugin.cs
 Build.bat
 find_hdt_assembly.ps1
-LISEZ-MOI.txt
+README.md
+LICENSE.txt
 .gitignore
 lib/
 dist/
 ```
 
-Rôle des fichiers :
-
 ### `FinalStatsPlugin.cs`
 
-Contient actuellement :
+This is currently the main source file.
 
-- l’implémentation `IPlugin` ;
-- le cycle de vie HDT ;
-- le suivi de partie ;
-- les compteurs ;
-- l’analyse de `Power.log` ;
-- la détection des transitions d’entités ;
-- le calcul des dégâts de héros ;
-- la création et la mise à jour de l’overlay WPF ;
-- le bouton Show/Hide ;
-- les diagnostics.
+It contains most of the plugin logic, including:
+
+- the `IPlugin` implementation;
+- HDT lifecycle handling;
+- game start and game end handling;
+- match state;
+- combat state;
+- cumulative counters;
+- entity transition tracking;
+- `Power.log` parsing;
+- shop purchase detection;
+- Tavern refresh tracking;
+- hero damage tracking;
+- WPF overlay construction;
+- overlay value updates;
+- Show/Hide button behavior;
+- diagnostic logging.
+
+Do not assume the source file has already been split into multiple services.
 
 ### `FinalStatsPlugin.csproj`
 
-Configuration actuelle :
+Current technical target:
 
 ```text
 TargetFramework: net472
 OutputType: Library
 UseWPF: true
 PlatformTarget: x64
+Platforms: x64
 LangVersion: 10
 ```
 
-Références externes :
-
-```text
-lib/HearthstoneDeckTracker.exe
-lib/HearthDb.dll
-```
-
-Ces deux fichiers sont des dépendances locales de compilation et ne doivent pas être publiés dans le dépôt.
-
-### `Build.bat`
-
-Script de compilation principal sous Windows.
-
-Il :
-
-1. reçoit le dossier HDT ou le chemin de `HearthstoneDeckTracker.exe` ;
-2. utilise `find_hdt_assembly.ps1` ;
-3. copie les véritables assemblies HDT dans `lib/` ;
-4. cherche MSBuild ;
-5. compile en `Release|x64` ;
-6. copie `FinalStatsPlugin.dll` dans `dist/`.
-
-### `find_hdt_assembly.ps1`
-
-Recherche récursivement un véritable assembly .NET nommé :
-
-```text
-HearthstoneDeckTracker.exe
-```
-
-Il doit éviter de sélectionner un simple lanceur non managé.
-
-### `LISEZ-MOI.txt`
-
-Documentation française de la version de développement.
-
-Elle doit être mise à jour lorsqu’un comportement, une statistique, une limitation ou une procédure change.
-
----
-
-## 5. Environnement technique
-
-Contraintes obligatoires :
-
-- Windows ;
-- .NET Framework 4.7.2 ;
-- WPF ;
-- architecture x64 ;
-- C# 10 ;
-- compatibilité avec la version HDT actuellement ciblée ;
-- aucune dépendance NuGet supplémentaire sans justification explicite ;
-- aucune dépendance réseau pour le fonctionnement normal du plugin.
-
-Ne pas migrer vers .NET moderne, WinUI, Avalonia, Electron ou une application séparée sans demande explicite.
-
-Ne pas modifier l’installation HDT de l’utilisateur.
-
-Ne jamais inscrire dans le dépôt :
-
-- des chemins personnels absolus ;
-- des noms de profil Windows ;
-- des tokens ;
-- des identifiants privés ;
-- les DLL de HDT ;
-- les fichiers générés de compilation ;
-- des logs personnels.
-
----
-
-## 6. Commandes de compilation
-
-Commande recommandée depuis la racine du projet :
-
-```bat
-Build.bat "CHEMIN_VERS_LE_DOSSIER_HDT"
-```
-
-Ou :
-
-```bat
-Build.bat "CHEMIN_VERS_HearthstoneDeckTracker.exe"
-```
-
-Exécution non interactive possible :
-
-```bat
-cmd /c Build.bat "CHEMIN_VERS_LE_DOSSIER_HDT"
-```
-
-Résultat attendu :
-
-```text
-dist\FinalStatsPlugin.dll
-```
-
-En cas d’échec :
-
-1. lire toute la sortie de MSBuild ;
-2. corriger la première erreur réelle ;
-3. relancer la compilation ;
-4. ne pas masquer les erreurs par des contournements génériques ;
-5. ne pas déclarer la tâche terminée tant que l’état réel n’est pas expliqué.
-
-Avant de compiler, vérifier que :
+The project references local HDT assemblies:
 
 ```text
 lib\HearthstoneDeckTracker.exe
 lib\HearthDb.dll
 ```
 
-sont présents ou peuvent être récupérés par `Build.bat`.
+These assemblies are local build dependencies and must not be committed.
 
-Si l’environnement ne contient pas Windows, Visual Studio/MSBuild ou les assemblies HDT :
+### `FinalStatsPlugin.sln`
 
-- effectuer uniquement les vérifications statiques possibles ;
-- indiquer explicitement que la compilation HDT n’a pas été exécutée ;
-- ne pas inventer un résultat de build.
+The solution currently references:
+
+```text
+FinalStatsPlugin.csproj
+```
+
+The project file and solution file do not need to be renamed solely because the output DLL is named `HDT-FinalStatsPlugin.dll`.
+
+### `Build.bat`
+
+The Windows build script:
+
+1. accepts an HDT installation directory or `HearthstoneDeckTracker.exe`;
+2. invokes `find_hdt_assembly.ps1`;
+3. locates the real managed HDT assembly;
+4. copies HDT dependencies to `lib`;
+5. locates MSBuild;
+6. compiles `Release|x64`;
+7. copies the final DLL to `dist`.
+
+### `find_hdt_assembly.ps1`
+
+This script searches for the real managed:
+
+```text
+HearthstoneDeckTracker.exe
+```
+
+It must avoid selecting a non-managed launcher or unrelated executable.
+
+### `README.md`
+
+Public GitHub documentation.
+
+It must describe this plugin as a cumulative Battlegrounds statistics tracker and use:
+
+```text
+HDT-FinalStatsPlugin.dll
+```
+
+in installation instructions.
+
+### `AGENTS.md`
+
+Development instructions for Codex and other coding agents.
+
+Do not add end-user installation instructions here unless they affect development or release validation.
 
 ---
 
-## 7. Règles de modification du code
+## 5. Technical constraints
 
-### 7.1 Modifications ciblées
+Required platform:
 
-Préférer les changements petits, isolés et vérifiables.
+- Windows;
+- .NET Framework 4.7.2;
+- WPF;
+- x64;
+- C# 10;
+- Hearthstone Deck Tracker plugin API;
+- HearthDb.
 
-Ne jamais effectuer de remplacement global approximatif sur des noms de méthodes ou d’identifiants.
+Do not migrate the project to:
 
-Éviter notamment les remplacements pouvant produire des erreurs comme :
+- .NET 6, 7, 8, 9, or later;
+- WinUI;
+- Avalonia;
+- Electron;
+- a standalone desktop application;
+- a Windows service;
+
+unless the user explicitly requests and approves that architectural change.
+
+Do not add a NuGet dependency unless it is clearly necessary and approved.
+
+Prefer framework APIs and existing HDT APIs.
+
+The normal plugin must not require Internet access.
+
+The plugin must never modify the user's HDT installation beyond normal plugin loading and local build dependency copying performed by `Build.bat`.
+
+Never commit:
+
+- personal absolute paths;
+- Windows usernames;
+- access tokens;
+- private identifiers;
+- local HDT binaries;
+- generated DLLs;
+- PDB files;
+- personal logs;
+- temporary files.
+
+---
+
+## 6. User communication
+
+The main user is French-speaking and is a beginner in C#/.NET development.
+
+Source code, identifiers, technical comments, and this file may be written in English.
+
+Reports to the user should normally be written in French.
+
+When reporting work:
+
+- explain exactly what changed;
+- avoid unnecessary jargon;
+- give exact commands when manual action is required;
+- distinguish between code review, compilation, and in-game testing;
+- never claim that a build succeeded unless it was actually run successfully;
+- never claim that a statistic is correct without either automated evidence or an in-game test;
+- clearly list remaining manual tests;
+- explain errors in a way a beginner can follow.
+
+Do not provide only isolated snippets when the task requires a complete repository change. Modify the appropriate files coherently.
+
+---
+
+## 7. Build instructions
+
+Preferred Windows build command from the repository root:
+
+```bat
+Build.bat "PATH_TO_HDT_INSTALLATION"
+```
+
+The argument may also be the full path to:
+
+```text
+HearthstoneDeckTracker.exe
+```
+
+Non-interactive execution:
+
+```bat
+cmd /c Build.bat "PATH_TO_HDT_INSTALLATION"
+```
+
+Expected final artifact:
+
+```text
+dist\HDT-FinalStatsPlugin.dll
+```
+
+Before building, ensure that the build script can obtain:
+
+```text
+lib\HearthstoneDeckTracker.exe
+lib\HearthDb.dll
+```
+
+### Build failure procedure
+
+When compilation fails:
+
+1. read the complete MSBuild output;
+2. identify the first real compiler or project error;
+3. fix that error rather than hiding it;
+4. rebuild;
+5. verify the exact DLL path;
+6. report the real result.
+
+Do not suppress errors simply to produce a file.
+
+If the environment does not have Windows, MSBuild, Visual Studio Build Tools, or the HDT assemblies:
+
+- run all possible static checks;
+- inspect the diff carefully;
+- state explicitly that the HDT build was not executed;
+- do not fabricate a successful build result.
+
+---
+
+## 8. General code-change rules
+
+### 8.1 Prefer small changes
+
+Make changes that are:
+
+- focused;
+- isolated;
+- reviewable;
+- reversible;
+- testable.
+
+Do not combine an unrelated refactor with a bug fix.
+
+Do not rewrite the entire plugin to add one counter.
+
+### 8.2 Protect stable statistics
+
+A task involving one statistic must not silently change the behavior of other statistics.
+
+Examples:
+
+- a hero damage fix must not alter gold tracking;
+- an overlay layout change must not alter counter calculations;
+- JSON storage must not change the values displayed by the current overlay;
+- dashboard work must not change HDT event subscriptions unless required.
+
+### 8.3 Avoid unsafe global replacements
+
+Never use broad text replacement without reviewing every result.
+
+Before renaming a method, field, class, or output filename:
+
+1. search all occurrences;
+2. inspect declarations and call sites;
+3. change only intended references;
+4. review the final diff;
+5. search for stale and duplicated names.
+
+Avoid accidental names such as:
 
 ```text
 TryTryExtractEntityId
 ```
 
-Avant toute modification :
+### 8.4 Preserve readability
 
-- rechercher toutes les occurrences concernées ;
-- vérifier les appels et la déclaration ;
-- examiner le diff final.
+Use:
 
-### 7.2 Préserver les fonctions stables
+- 4-space indentation;
+- braces on separate lines;
+- `PascalCase` for types and methods;
+- `_camelCase` for private fields;
+- clear local variable names;
+- explicit state transitions;
+- short useful comments;
+- `CultureInfo.InvariantCulture` for technical serialization and stable numeric formats.
 
-Une tâche concernant un compteur ne doit pas modifier les autres compteurs sans nécessité démontrée.
+Do not introduce `dynamic` unless there is no reasonable typed alternative.
 
-Une tâche concernant l’esthétique ne doit pas modifier les calculs.
+### 8.5 Error handling
 
-Une tâche concernant le stockage JSON ne doit pas modifier silencieusement les valeurs affichées dans l’overlay.
+The plugin must not crash HDT.
 
-Ne pas effectuer de refactorisation générale opportuniste pendant une correction de bug.
+For frequent update paths:
 
-### 7.3 Style C#
-
-Conserver le style existant :
-
-- indentation de 4 espaces ;
-- accolades sur des lignes séparées ;
-- noms de types et méthodes en `PascalCase` ;
-- champs privés en `_camelCase` ;
-- constantes explicites ;
-- commentaires courts et utiles ;
-- logique lisible plutôt que compacte ;
-- utilisation de `CultureInfo.InvariantCulture` pour les données sérialisées ou numériques techniques ;
-- pas de `dynamic` sauf nécessité absolue et documentée.
-
-Les identifiants et commentaires techniques peuvent rester en anglais, conformément au code existant.
-
-Les textes visibles dans l’overlay doivent rester cohérents avec l’interface actuelle en anglais.
-
-### 7.4 Exceptions
-
-Le plugin ne doit jamais faire planter HDT.
-
-Pour les traitements exécutés fréquemment :
-
-- intercepter les exceptions au niveau approprié ;
-- journaliser une information exploitable ;
-- éviter les blocs `catch` silencieux, sauf dans la fonction de diagnostic elle-même ;
-- ne jamais lancer volontairement une exception dans `OnUpdate()`.
+- catch exceptions at an appropriate boundary;
+- log useful context;
+- avoid empty `catch` blocks except inside the final diagnostic fallback itself;
+- do not throw intentionally from `OnUpdate()`;
+- do not perform slow blocking work every 100 ms.
 
 ---
 
-## 8. Cycle de vie HDT
+## 9. HDT lifecycle and match state
 
-Événements actuellement utilisés :
+Current HDT events include:
 
 ```text
 GameEvents.OnGameStart
@@ -309,7 +499,7 @@ GameEvents.OnInMenu
 GameEvents.OnEntityWillTakeDamage
 ```
 
-Méthodes principales :
+Current lifecycle and tracking methods include:
 
 ```text
 OnLoad
@@ -325,19 +515,11 @@ ResetStatistics
 TrackMatch
 ```
 
-Règles :
-
-- enregistrer les événements une seule fois lors du chargement ;
-- ne pas ajouter plusieurs abonnements pour le même traitement ;
-- tenir compte du fait que `OnUpdate()` est appelé environ toutes les 100 ms ;
-- éviter les accès disque lourds ou les analyses complètes inutiles à chaque `OnUpdate()` ;
-- maintenir un état explicite pour éviter les doubles initialisations et doubles finalisations ;
-- rendre les opérations de fin de partie idempotentes ;
-- ne pas effacer les statistiques finales avant le début réel de la partie suivante.
-
-États importants actuels :
+Important state fields include:
 
 ```text
+_loaded
+_pluginVisible
 _trackingMatch
 _hasMatchData
 _gameEndObserved
@@ -346,25 +528,41 @@ _newGameEventPending
 _previousCombatPhase
 ```
 
-Toute modification de ces états doit être examinée avec les scénarios suivants :
+Rules:
 
-1. lancement normal d’une partie ;
-2. début du premier recrutement ;
-3. début et fin de plusieurs combats ;
-4. égalité d’un combat ;
-5. victoire d’un combat ;
-6. défaite d’un combat ;
-7. fin normale de partie ;
-8. retour au menu ;
-9. nouvelle partie ;
-10. activation/désactivation du plugin ;
-11. reconnexion éventuelle.
+- subscribe once during plugin loading;
+- do not accidentally subscribe the same handler multiple times;
+- make match start and match finish operations idempotent;
+- avoid double initialization;
+- avoid double finalization;
+- preserve the final summary until the next real match begins;
+- do not reset statistics merely because the game briefly changes state;
+- remember that `OnUpdate()` runs frequently;
+- do not scan the complete `Power.log` or write large files on every update.
+
+Required lifecycle scenarios:
+
+1. HDT starts in the menu;
+2. plugin is enabled;
+3. a Battlegrounds match begins;
+4. the first Tavern phase begins;
+5. multiple Tavern and combat phases occur;
+6. a combat ends in a win;
+7. a combat ends in a loss;
+8. a combat ends in a draw;
+9. the match ends normally;
+10. the game returns to the menu;
+11. the final summary remains visible;
+12. a new match starts;
+13. old values are reset only at the correct time;
+14. the plugin is disabled and enabled again;
+15. HDT is restarted.
 
 ---
 
-## 9. Overlay WPF
+## 10. WPF overlay behavior
 
-Dimensions et position de référence :
+Current reference layout:
 
 ```text
 PanelWidth: 250
@@ -375,50 +573,57 @@ ToggleButtonHeight: 30
 ToggleButtonGap: 6
 ```
 
-Comportement attendu :
+### During a Battlegrounds match
 
-### Pendant une partie
+- the Show/Hide button is visible;
+- the overlay can be hidden;
+- the overlay can be shown again;
+- the visibility preference remains stable during the match.
 
-- le bouton est visible ;
-- le bouton affiche :
-  - `Hide combat stats` si le panneau est visible ;
-  - `Show combat stats` si le panneau est masqué ;
-- le choix de visibilité est conservé pendant la partie.
+Current button texts:
 
-### Après la partie, dans le menu
+```text
+Hide combat stats
+Show combat stats
+```
 
-- le panneau final est forcé visible ;
-- le bouton est masqué ;
-- la zone interactive du bouton est retirée ;
-- les statistiques restent visibles jusqu’à la prochaine partie.
+### After the match
 
-### Partie suivante
+- the final statistics panel is forced visible;
+- the Show/Hide button is hidden;
+- the button's interactive hit-test area is disabled;
+- final statistics remain visible until the next match.
 
-- le bouton réapparaît ;
-- la préférence précédente de visibilité peut être restaurée.
+### Next match
 
-Règles WPF/HDT :
+- the button becomes available again;
+- the normal in-match visibility behavior resumes.
 
-- créer et modifier les contrôles via le `Dispatcher` de `Core.OverlayCanvas` ;
-- ne pas accéder directement aux contrôles WPF depuis un thread non UI ;
-- ne pas recréer inutilement tout l’overlay à chaque mise à jour ;
-- garder le panneau non interactif ;
-- enregistrer uniquement le bouton comme zone interactive avec :
+### WPF and HDT safety rules
+
+- create and update WPF controls through `Core.OverlayCanvas.Dispatcher`;
+- do not update WPF controls from a non-UI thread;
+- do not recreate the entire overlay every update;
+- keep the statistics panel non-interactive;
+- register only the intended button as overlay-hit-test-visible;
+- unregister the button's hit-test area when hidden or removed;
+- never make the whole overlay intercept Hearthstone clicks;
+- preserve normal, hover, and pressed button states;
+- remove controls cleanly when unloading.
+
+Use the HDT overlay helper appropriately:
 
 ```csharp
 OverlayExtensions.SetIsOverlayHitTestVisible(element, true);
 ```
 
-- désenregistrer la zone interactive quand elle est masquée ou supprimée ;
-- ne jamais rendre tout l’overlay HDT cliquable ;
-- ne pas bloquer les clics destinés à Hearthstone ;
-- préserver les états visuels normal, survolé et pressé du bouton.
-
 ---
 
-## 10. Sémantique des statistiques actuelles
+## 11. Current statistic semantics
 
-Statistiques suivies :
+Do not change the meaning, label, or counting method of an existing statistic without an explicit task.
+
+Current categories include:
 
 ```text
 Highest turn
@@ -444,182 +649,310 @@ Hero damage taken
 Max damage taken
 ```
 
-Les noms, l’ordre et la signification ne doivent pas changer sans demande explicite.
+### 11.1 Gold spent
 
-### 10.1 Gold spent
+Current intended method:
 
-Méthode de référence :
+- observe `RESOURCES_USED`;
+- add only positive increases;
+- treat a decrease as a new baseline;
+- do not count minion sales as spending;
+- do not add the current value again merely because the turn changed.
 
-- observer `RESOURCES_USED` ;
-- ajouter uniquement les augmentations positives ;
-- une diminution sert uniquement de nouvelle ligne de base ;
-- une vente ne doit jamais être interprétée comme une dépense ;
-- un changement de tour ne doit pas ajouter artificiellement la valeur courante.
+Do not restore `NUM_RESOURCES_SPENT_THIS_GAME` as the sole source unless it is proven reliable for the targeted Hearthstone and HDT versions.
 
-Ne pas réintroduire aveuglément `NUM_RESOURCES_SPENT_THIS_GAME` sans preuve qu’il est fiable en Battlegrounds pour la version HDT/Hearthstone ciblée.
+Required tests:
 
-### 10.2 Cartes achetées
+- buy a minion;
+- buy a Tavern spell;
+- refresh the Tavern;
+- upgrade the Tavern;
+- sell a minion;
+- gain extra gold;
+- spend gold after receiving extra gold;
+- change turns.
 
-La détection actuelle :
+### 11.2 Tavern rolls
 
-- mémorise les identifiants d’entités visibles dans la Taverne ;
-- détecte le passage de la même entité vers la main du joueur ;
-- classe l’entité comme serviteur ou sort de Taverne ;
-- empêche le double comptage par identifiant.
+The statistic must count actual Tavern refresh actions.
 
-Limite connue :
+It must distinguish where possible between:
 
-- une carte obtenue gratuitement directement depuis la Taverne peut être comptée comme achetée.
+- paid refreshes;
+- free refreshes used;
+- free refreshes gained.
 
-Scénario obligatoire de test :
+Do not infer a refresh only from an unrelated resource change.
 
-- achat de la troisième copie d’un serviteur créant immédiatement un triple.
+Required tests:
 
-### 10.3 Dégâts des héros
+- normal paid refresh;
+- refresh with one free refresh available;
+- multiple free refreshes;
+- refresh immediately after a turn transition;
+- actions occurring quickly;
+- no duplicate count from one refresh.
 
-Source actuelle :
+### 11.3 Cards bought
+
+Current purchase detection is based on shop entity tracking and entity movement toward the player's hand.
+
+It should:
+
+- remember known shop entity IDs;
+- identify the same entity entering the player's hand;
+- classify minions and Tavern spells;
+- avoid counting the same entity twice.
+
+Known limitation:
+
+- a card obtained for free directly from the shop may look similar to a purchase.
+
+Required tests:
+
+- buy a minion;
+- buy a Tavern spell;
+- buy several cards quickly;
+- buy the third copy that immediately creates a golden triple;
+- receive a shop card for free;
+- sell a card after buying it.
+
+### 11.4 Played cards
+
+Played cards, minions, and Tavern spells may use multiple HDT and `Power.log` signals.
+
+Rules:
+
+- deduplicate by entity ID where possible;
+- do not count automatic effects as player-played cards;
+- do not count the same Tavern spell through both a tag and a log line;
+- keep explicit fallback counters separate until the final result is selected.
+
+### 11.5 Battlecries and Rally
+
+Only count effects that match the intended Battlegrounds mechanic.
+
+Do not count unrelated triggered effects merely because they use a general trigger block.
+
+When Hearthstone introduces new mechanics or changes logging behavior:
+
+1. add targeted diagnostics;
+2. collect evidence;
+3. test several cards;
+4. then update the counter.
+
+### 11.6 Highest minion statistics
+
+Track:
+
+- highest Attack reached by one relevant minion;
+- highest Health reached by one relevant minion;
+- highest combined Attack and Health;
+- the Attack and Health of the minion that achieved the highest combined total.
+
+Do not combine Attack from one minion and Health from another to create a fake “highest creature.”
+
+Exclude irrelevant temporary or non-board entities when appropriate.
+
+### 11.7 Tavern buffs
+
+The Tavern buff counters depend on data exposed by Hearthstone and HDT.
+
+Known issue:
+
+- HDT's own Tavern buff information may stop working after a Hearthstone patch.
+
+Rules:
+
+- do not invent a value;
+- do not sum every generic `TAG_SCRIPT_DATA_NUM_1` or `TAG_SCRIPT_DATA_NUM_2`;
+- these tags can belong to unrelated entities;
+- add targeted diagnostics before changing the calculation;
+- record the entity ID, card ID, controller, zone, tags, and phase;
+- validate the result in real matches.
+
+A missing value is better than a confident but false value.
+
+### 11.8 Hero combat damage
+
+Current source:
 
 ```text
 GameEvents.OnEntityWillTakeDamage
 PREDAMAGE
 ```
 
-Filtrage obligatoire :
+Mandatory filtering:
 
-- partie Battlegrounds active ;
-- phase de combat active ;
-- cible de type héros ;
-- identifiant exact correspondant au tag `HERO_ENTITY` de `PlayerEntity` ou `OpponentEntity`.
+- plugin loaded;
+- active tracked Battlegrounds match;
+- current Battlegrounds combat phase;
+- positive damage value;
+- target is a hero;
+- target entity ID exactly matches the active hero entity referenced by the relevant player's `HERO_ENTITY` tag.
 
-Raison :
+Why exact hero matching matters:
 
-- Battlegrounds peut exposer plusieurs entités ressemblant à des héros ;
-- un même impact peut produire plusieurs notifications ;
-- les copies de classement ou d’affichage ne doivent pas être comptées.
+- Battlegrounds can expose multiple hero-like entities;
+- leaderboard or visual copies may exist;
+- one impact may produce duplicate-looking signals.
 
-Comportement actuel :
+Current intended behavior:
 
-- conserver la plus grande valeur `PREDAMAGE` reçue par chaque héros pendant un combat ;
-- finaliser une seule fois à la fin du combat ;
-- un draw doit produire `0` dégât infligé et `0` dégât reçu ;
-- une disparition ou réinitialisation d’armure ne doit jamais être comptée comme dégât ;
-- les dégâts absorbés par l’armure doivent rester inclus dans la valeur réelle de l’impact.
+- retain the largest valid `PREDAMAGE` value for each side during one combat;
+- finalize the combat once;
+- add that value once to the match total;
+- update the single-combat maximum;
+- reset the per-combat snapshot.
 
-Ne pas revenir à une simple différence :
+A draw should produce:
 
 ```text
-DAMAGE + perte d’ARMOR
+damage dealt: 0
+damage taken: 0
 ```
 
-Cette ancienne méthode a déjà créé des valeurs erronées, notamment l’ajout de toute l’armure adverse lors d’un draw.
+Do not return to a naive calculation based only on:
 
-### 10.4 Tavern buff max
+```text
+DAMAGE delta + ARMOR delta
+```
 
-Le compteur dépend actuellement des données exposées par HDT.
+That older approach can count an opponent's armor reset as damage after a draw.
 
-Le compteur intégré HDT a déjà cessé de s’afficher après certains patchs Hearthstone.
+Required tests:
 
-Règles :
-
-- ne pas inventer une valeur ;
-- ne pas additionner tous les tags génériques `TAG_SCRIPT_DATA_NUM_1/2` ;
-- ces tags sont utilisés par de nombreuses entités sans rapport avec le buff de Taverne ;
-- si le compteur officiel reste vide, ajouter d’abord un diagnostic ciblé ;
-- identifier précisément :
-  - le `CardId` ;
-  - l’entité ;
-  - le contrôleur ;
-  - les tags ;
-  - la phase de jeu ;
-- valider en partie avant d’activer une nouvelle méthode de calcul.
-
-### 10.5 Power.log
-
-Le plugin analyse certaines lignes de `Core.Game.PowerLog`.
-
-Règles :
-
-- ne traiter que les nouvelles lignes avec `_processedPowerLogLines` ;
-- ne pas reparcourir tout le log à chaque mise à jour ;
-- conserver les protections contre les lignes incomplètes ;
-- limiter les regex au strict nécessaire ;
-- éviter les regex catastrophiques ;
-- utiliser les identifiants d’entités lorsque cela est possible ;
-- ne pas supposer qu’un nom de carte localisé sera stable ;
-- préférer les `CardId`, tags et contrôleurs.
+- win with no opponent armor;
+- win against armor;
+- loss with player armor;
+- draw;
+- lethal overkill;
+- multiple consecutive combats;
+- final combat ending the match;
+- no duplicated values.
 
 ---
 
-## 11. Diagnostics
+## 12. Power.log processing
 
-Fichier actuel :
+The plugin processes selected lines from:
+
+```text
+Core.Game.PowerLog
+```
+
+Rules:
+
+- process only new lines using `_processedPowerLogLines`;
+- do not rescan the full log every update;
+- protect against incomplete lines;
+- use entity IDs, card IDs, tags, zones, and controllers where possible;
+- avoid depending on localized card names;
+- keep regex patterns focused;
+- avoid expensive or catastrophic regex patterns;
+- deduplicate events from multiple log sources;
+- reset the processed-line state only at the correct lifecycle point.
+
+When a parser changes, test against real log samples if available.
+
+Do not assume Hearthstone logging is stable across patches.
+
+---
+
+## 13. Diagnostics
+
+Current diagnostic file:
 
 ```text
 FinalStatsPlugin_debug.log
 ```
 
-Il est écrit à côté de la DLL chargée.
+The diagnostic filename may remain independent from the distributed DLL filename unless a dedicated renaming task is requested.
 
-Règles :
+Diagnostic rules:
 
-- les diagnostics ne doivent jamais interrompre HDT ;
-- `WriteDiagnostic()` doit rester protégé par un `try/catch` final ;
-- chaque nouvelle détection fragile doit disposer de messages exploitables ;
-- éviter d’écrire la même ligne toutes les 100 ms ;
-- journaliser les transitions, décisions et valeurs, pas seulement « erreur » ;
-- ne pas inclure de données privées inutiles ;
-- ne pas publier les logs dans Git.
+- diagnostics must never crash HDT;
+- the final logging method must be protected by `try/catch`;
+- log transitions and decisions, not only generic errors;
+- avoid writing the same message every 100 ms;
+- use structured lines for fragile trackers;
+- do not commit personal log files;
+- reduce excessive temporary logging after a bug is fixed.
 
-Pour un bug intermittent, préférer temporairement des lignes structurées :
+Preferred format:
 
 ```text
-EVENT | key=value | key=value
+EVENT NAME | key=value | key=value
 ```
 
-Exemple :
+Example:
 
 ```text
 HERO PREDAMAGE DEALT | target=42 | value=8 | combatMax=8
 ```
 
-Une fois le problème stabilisé, réduire les diagnostics excessifs.
+Useful diagnostics for a tracker should explain:
+
+- what event occurred;
+- which entity was involved;
+- why it was accepted or rejected;
+- which value was stored;
+- whether it changed a total or maximum.
 
 ---
 
-## 12. Versionnement
+## 14. Versioning
 
-La version du plugin se trouve dans :
+The plugin version is defined in the `IPlugin` implementation, currently in a form similar to:
 
 ```csharp
 public Version Version => new Version(MAJOR, MINOR, PATCH);
 ```
 
-Règles :
+Rules:
 
-- incrémenter la version pour chaque version distribuée ou testée ;
-- une correction ou petite fonctionnalité augmente généralement `PATCH` ;
-- ne pas modifier rétroactivement une archive déjà distribuée ;
-- mettre à jour `LISEZ-MOI.txt` avec :
-  - la nouvelle version ;
-  - les changements ;
-  - les limitations ;
-  - les tests attendus ;
-- vérifier que le nom du ZIP, le texte de documentation et la propriété `Version` correspondent.
+- increment the version for every distributed or user-tested build;
+- bug fixes and small features normally increment `PATCH`;
+- do not silently replace an already distributed version with different code;
+- keep version references consistent across code, documentation, changelog, release title, and archive name;
+- do not increment the version for analysis-only work with no file changes.
 
-Ne pas incrémenter la version pour une simple analyse sans changement de fichiers.
+Suggested release naming:
+
+```text
+HDT-FinalStatsPlugin_v0.1.24.zip
+```
+
+The archive should contain the correctly named:
+
+```text
+HDT-FinalStatsPlugin.dll
+```
 
 ---
 
-## 13. Git et GitHub
+## 15. Git and GitHub rules
 
-Avant modification :
+Repository:
+
+```text
+Reign-in-blood/HDT-FinalStatsPlugin
+```
+
+Default branch currently used by the repository:
+
+```text
+master
+```
+
+Before editing:
 
 ```bash
 git status
 git branch --show-current
 ```
 
-Après modification :
+After editing:
 
 ```bash
 git diff --check
@@ -627,29 +960,28 @@ git diff
 git status
 ```
 
-Règles :
+Rules:
 
-- ne jamais travailler directement sur une branche publiée sans vérifier la consigne de l’utilisateur ;
-- préférer une branche dédiée pour les fonctionnalités importantes ;
-- ne pas forcer un push ;
-- ne pas réécrire l’historique ;
-- ne pas utiliser `git reset --hard` ;
-- ne pas supprimer des fichiers non suivis sans autorisation ;
-- ne pas modifier ou supprimer des changements locaux de l’utilisateur ;
-- ne pas committer automatiquement sauf demande explicite ;
-- ne pas pousser ni ouvrir de pull request sans demande explicite ;
-- utiliser des commits petits et descriptifs.
+- do not overwrite unrelated user changes;
+- do not delete untracked files without permission;
+- do not use `git reset --hard`;
+- do not force-push;
+- do not rewrite published history;
+- use a separate branch for significant features when practical;
+- do not commit, push, or open a pull request unless the user asks;
+- keep commits focused and descriptive.
 
-Exemples de messages :
+Example commit messages:
 
 ```text
+fix: use the canonical HDT-FinalStatsPlugin DLL name
 fix: prevent duplicate hero damage counting
-feat: add local match history storage
-feat: add static statistics dashboard
-docs: update build and testing instructions
+feat: record local match history
+feat: add static local statistics dashboard
+docs: clarify build and installation steps
 ```
 
-Ne pas committer :
+Do not commit:
 
 ```text
 bin/
@@ -657,98 +989,127 @@ obj/
 dist/*.dll
 lib/HearthstoneDeckTracker.exe
 lib/HearthDb.dll
+*.pdb
 *.log
 .vs/
 ```
 
-Respecter `.gitignore`.
+Respect `.gitignore`.
 
 ---
 
-## 14. Vérifications obligatoires avant livraison
+## 16. Required checks before delivery
 
-Pour chaque modification C# :
+For every C# change:
 
-1. vérifier le diff ;
-2. vérifier les accolades et la structure ;
-3. vérifier les noms de méthodes et appels ;
-4. vérifier qu’aucun remplacement accidentel n’a été introduit ;
-5. compiler avec `Build.bat` si l’environnement le permet ;
-6. confirmer la création de :
+1. inspect the complete diff;
+2. run `git diff --check`;
+3. verify braces and syntax;
+4. verify declarations and call sites;
+5. search for accidental duplicate names;
+6. compile with `Build.bat` when possible;
+7. confirm creation of:
 
 ```text
-dist\FinalStatsPlugin.dll
+dist\HDT-FinalStatsPlugin.dll
 ```
 
-7. vérifier que seuls les fichiers attendus ont changé ;
-8. mettre à jour la version et la documentation si une version est distribuée.
+8. confirm that the old distributed DLL name was not regenerated;
+9. list all changed files;
+10. update version and documentation when distributing a test build.
 
-Pour une modification d’overlay :
+### For DLL naming changes
 
-- panneau visible ;
-- panneau masqué ;
-- bouton cliquable ;
-- bouton non cliquable lorsqu’il est caché ;
-- clics du jeu non bloqués ;
-- retour au menu ;
-- nouvelle partie ;
-- plusieurs résolutions d’écran si possible.
+Search for both:
 
-Pour une modification de compteur :
+```text
+FinalStatsPlugin.dll
+HDT-FinalStatsPlugin.dll
+```
 
-- première occurrence ;
-- plusieurs occurrences ;
-- zéro occurrence ;
-- changement de tour ;
-- draw ;
-- victoire ;
-- défaite ;
-- vente d’un serviteur ;
-- triple immédiat si pertinent ;
-- fin de partie ;
-- nouvelle partie sans redémarrer HDT.
+Expected final state:
 
-Si aucun test en jeu n’est possible, fournir une liste précise des scénarios que l’utilisateur doit vérifier.
+- internal project filenames may remain `FinalStatsPlugin.*`;
+- source namespace may remain `FinalStatsPlugin`;
+- distributed artifact must be `HDT-FinalStatsPlugin.dll`;
+- README installation instructions must use `HDT-FinalStatsPlugin.dll`;
+- Build.bat must verify, copy, and print `HDT-FinalStatsPlugin.dll`;
+- project `<AssemblyName>` must be `HDT-FinalStatsPlugin`.
+
+### For overlay changes
+
+Test:
+
+- visible panel;
+- hidden panel;
+- Show/Hide button;
+- button hover and press;
+- no blocked Hearthstone clicks;
+- final summary in the menu;
+- next-match reset;
+- at least one common screen resolution;
+- additional resolutions when layout changes are substantial.
+
+### For statistic changes
+
+Test:
+
+- first occurrence;
+- repeated occurrence;
+- zero occurrence;
+- fast consecutive events;
+- turn transition;
+- combat transition;
+- match end;
+- menu return;
+- new match without restarting HDT;
+- no double counting.
+
+If in-game testing is not possible, provide a precise checklist for the user.
 
 ---
 
-## 15. Définition de « terminé »
+## 17. Definition of done
 
-Une tâche n’est terminée que lorsque :
+A task is complete only when:
 
-- le comportement demandé est implémenté ;
-- les fonctions stables n’ont pas été modifiées sans raison ;
-- le diff est propre ;
-- la compilation a réussi, ou son impossibilité est clairement signalée ;
-- les tests exécutés sont listés ;
-- les tests manuels restants sont listés ;
-- la version et la documentation sont cohérentes si nécessaire ;
-- aucun fichier généré ou privé n’a été ajouté ;
-- aucun chemin personnel n’a été inscrit ;
-- le compte rendu final est compréhensible par un débutant.
+- the requested behavior is implemented;
+- unrelated stable behavior was preserved;
+- the diff is focused and clean;
+- naming is consistent;
+- compilation succeeded, or the inability to compile is explicitly stated;
+- executed tests are listed;
+- remaining manual tests are listed;
+- version and documentation are coherent when required;
+- no generated or private files were committed;
+- the report is understandable to a beginner.
 
 ---
 
-## 16. Future fonctionnalité : historique local des parties
+## 18. Planned local match history
 
-L’architecture prévue doit rester locale et transparente.
+A future goal is to store structured local match and combat history.
 
-### 16.1 Principes
+This is planned functionality, not a reason to rewrite the current plugin prematurely.
 
-- aucune application compagnon `.exe` ;
-- aucun service Windows ;
-- aucun serveur HTTP local par défaut ;
-- aucun port réseau ;
-- aucune télémétrie ;
-- aucun envoi vers un service distant ;
-- fonctionnement hors ligne ;
-- fichiers lisibles et exportables.
+### Design principles
 
-### 16.2 Stockage canonique
+- no companion `.exe`;
+- no Windows service;
+- no mandatory local HTTP server;
+- no open network port by default;
+- no telemetry;
+- no cloud upload;
+- no remote account;
+- offline operation;
+- readable local files;
+- failure of history storage must not break the live overlay.
 
-Utiliser JSON comme source de vérité.
+### Canonical storage format
 
-Structure recommandée :
+Use JSON as the source of truth.
+
+Suggested structure:
 
 ```text
 Dashboard/
@@ -763,7 +1124,7 @@ Dashboard/
         └── ...
 ```
 
-Chaque fichier de partie doit contenir au minimum :
+Suggested match fields:
 
 ```text
 schemaVersion
@@ -780,7 +1141,7 @@ finalStats
 combats
 ```
 
-Chaque combat peut contenir :
+Suggested combat fields:
 
 ```text
 turn
@@ -794,20 +1155,20 @@ playerBoard
 opponentBoard
 ```
 
-Ne pas enregistrer une donnée comme certaine si HDT ne permet pas de la déterminer fiablement.
+Do not store uncertain values as facts.
 
-Utiliser des valeurs explicites comme :
+Use:
 
 ```text
-unknown
 null
+unknown
 ```
 
-plutôt qu’une valeur inventée.
+when the data cannot be determined reliably.
 
-### 16.3 Compatibilité du schéma
+### Schema compatibility
 
-Tous les fichiers JSON doivent contenir :
+Every canonical JSON root should include:
 
 ```json
 {
@@ -815,49 +1176,49 @@ Tous les fichiers JSON doivent contenir :
 }
 ```
 
-Règles :
+Rules:
 
-- ne pas casser silencieusement les anciens fichiers ;
-- ajouter les nouveaux champs de façon compatible ;
-- incrémenter `schemaVersion` lors d’un changement incompatible ;
-- prévoir une lecture tolérante des champs manquants ;
-- documenter les migrations.
+- add new optional fields compatibly when possible;
+- increment `schemaVersion` for incompatible changes;
+- tolerate missing fields when reading old files;
+- document migrations;
+- never silently rewrite old data with a different meaning.
 
-### 16.4 Écriture sûre
+### Safe file writing
 
-Les sauvegardes de partie doivent être atomiques :
+Use atomic writes:
 
-1. écrire dans un fichier temporaire ;
-2. fermer le fichier ;
-3. remplacer ou renommer vers le fichier final.
+1. write a temporary file;
+2. flush and close it;
+3. rename or replace the final file.
 
-Ne pas laisser un JSON partiellement écrit si HDT ferme brutalement.
+Do not write large JSON files every 100 ms.
 
-Les erreurs d’écriture :
+Collect data in memory and persist at meaningful transitions.
 
-- doivent être journalisées ;
-- ne doivent pas interrompre le plugin ;
-- ne doivent pas bloquer `OnUpdate()`.
+A file-system error must:
 
-Éviter une écriture disque toutes les 100 ms.
+- be logged;
+- leave the live overlay running;
+- not crash HDT;
+- not block `OnUpdate()` repeatedly.
 
-Capturer les données en mémoire pendant la partie, puis sauvegarder aux transitions importantes ou à la fin.
+### Privacy
 
-### 16.5 Vie privée
+By default:
 
-Par défaut :
-
-- les données restent sur l’ordinateur ;
-- ne pas enregistrer de BattleTag complet si ce n’est pas nécessaire ;
-- prévoir la possibilité de masquer ou anonymiser les noms adverses ;
-- ne pas enregistrer de chemin personnel dans les fichiers ;
-- ne charger aucun script distant.
+- all data remains local;
+- do not save a full BattleTag unless required;
+- allow future opponent-name anonymization;
+- do not store personal absolute paths;
+- do not load remote scripts;
+- do not send match data externally.
 
 ---
 
-## 17. Future fonctionnalité : dashboard HTML local
+## 19. Planned local HTML dashboard
 
-Technologies autorisées :
+The dashboard must use local web technologies only:
 
 ```text
 HTML
@@ -866,19 +1227,19 @@ JavaScript
 JSON
 ```
 
-Ne pas créer de fichier Java `.java`.
+Do not create a Java `.java` file.
 
-Ne pas créer d’application compagnon.
+Do not create a companion executable.
 
-### 17.1 Chargement local
+### Local file loading
 
-Une page ouverte avec `file://` peut être limitée pour les appels `fetch()` vers des fichiers locaux.
+Browsers may restrict `fetch()` for pages opened through `file://`.
 
-Architecture recommandée :
+Recommended design:
 
-- conserver les fichiers `.json` comme source canonique ;
-- générer également un fichier `data.js` ;
-- exposer les données sous une variable globale contrôlée :
+- keep `.json` files as canonical data;
+- generate a local `data.js` file for the static page;
+- expose a controlled global variable:
 
 ```javascript
 window.FINAL_STATS_DATA = {
@@ -887,25 +1248,25 @@ window.FINAL_STATS_DATA = {
 };
 ```
 
-Dans `index.html` :
+Load it before the main script:
 
 ```html
 <script src="data.js"></script>
 <script src="app.js"></script>
 ```
 
-Ne pas dépendre d’un CDN.
+Do not depend on a CDN.
 
-Si une bibliothèque graphique est utilisée :
+If a chart library is included:
 
-- la distribuer localement ;
-- vérifier sa licence ;
-- documenter son origine et sa version ;
-- éviter une bibliothèque lourde si SVG ou Canvas natif suffit.
+- distribute it locally;
+- verify its license;
+- record its source and exact version;
+- avoid a large dependency when native SVG or Canvas is sufficient.
 
-### 17.2 Ouverture depuis HDT
+### Opening the dashboard from HDT
 
-Utiliser le `MenuItem` fourni par `IPlugin` pour ajouter un menu clair, par exemple :
+The HDT `IPlugin.MenuItem` property can later expose a menu such as:
 
 ```text
 Plugins
@@ -914,72 +1275,72 @@ Plugins
     └── Open data folder
 ```
 
-Lors de l’ouverture :
+When opening the dashboard:
 
-1. vérifier que les fichiers existent ;
-2. générer ou actualiser `data.js` ;
-3. ouvrir `index.html` avec le navigateur par défaut ;
-4. gérer proprement l’absence du fichier ;
-5. journaliser l’erreur sans faire planter HDT.
+1. verify required files exist;
+2. regenerate or update `data.js`;
+3. open `index.html` with the default browser;
+4. handle missing files safely;
+5. log errors without crashing HDT.
 
-Ne pas détourner le bouton Show/Hide de l’overlay pour cette fonction si un menu dédié est disponible.
+Do not repurpose the current overlay Show/Hide button when a dedicated plugin menu is more appropriate.
 
-### 17.3 Dashboard initial minimal
+### Initial dashboard scope
 
-Commencer par :
+Start with validated data only:
 
-- nombre de parties ;
-- placement moyen ;
-- durée moyenne ;
-- statistiques moyennes ;
-- liste des dernières parties ;
-- vue détaillée d’une partie ;
-- graphique des dégâts infligés et reçus par tour ;
-- graphique de l’or dépensé par tour.
+- total matches;
+- average placement;
+- average duration;
+- average selected match statistics;
+- recent match list;
+- individual match details;
+- hero damage dealt and taken by combat;
+- gold spent by turn.
 
-Ajouter les fonctions avancées uniquement après validation de la collecte.
+Do not build advanced graphs before validating the underlying data.
 
 ---
 
-## 18. Stratégie de développement des nouvelles données
+## 20. Strategy for new statistics
 
-Pour toute nouvelle statistique :
+For every new statistic:
 
-1. définir précisément sa signification ;
-2. identifier la source HDT ;
-3. déterminer quand la valeur apparaît ;
-4. vérifier les entités et contrôleurs ;
-5. ajouter un diagnostic temporaire ;
-6. tester sur plusieurs parties ;
-7. tester les cas nuls et atypiques ;
-8. seulement ensuite afficher ou sauvegarder la statistique.
+1. define its exact meaning;
+2. identify the HDT or `Power.log` source;
+3. determine when the value becomes available;
+4. identify the relevant entity and controller;
+5. add temporary targeted diagnostics;
+6. test multiple matches;
+7. test zero and unusual cases;
+8. remove excessive diagnostics;
+9. only then expose or persist the statistic.
 
-Ne pas construire un graphique avant d’avoir validé la donnée source.
+Do not mix:
 
-Pour une donnée par tour, conserver :
+- lifetime or historical totals;
+- current match cumulative totals;
+- current turn deltas;
+- current combat values;
+- maximum values.
+
+For per-turn data, preserve:
 
 ```text
-valeur cumulée avant le tour
-valeur cumulée après le tour
-delta du tour
+value before turn
+value after turn
+turn delta
 ```
 
-Pour une donnée par combat, conserver un objet de combat séparé et finalisé une seule fois.
-
-Ne pas mélanger :
-
-- statistique cumulative de partie ;
-- statistique du tour ;
-- statistique du combat ;
-- maximum historique.
+For per-combat data, use a dedicated combat object finalized once.
 
 ---
 
-## 19. Refactorisation future
+## 21. Gradual refactoring
 
-Le fichier principal est actuellement volumineux.
+The main source file is currently large.
 
-Une séparation progressive pourra être envisagée, sans refactorisation massive, par exemple :
+A future gradual structure may include:
 
 ```text
 Plugin.cs
@@ -995,32 +1356,34 @@ Overlay/StatsOverlay.cs
 Diagnostics/DiagnosticLogger.cs
 ```
 
-Règles :
+This is a direction, not a command to refactor everything immediately.
 
-- ne pas déplacer tout le code en une seule tâche ;
-- extraire une responsabilité à la fois ;
-- maintenir le comportement identique ;
-- compiler après chaque extraction ;
-- éviter les changements de logique cachés dans une refactorisation ;
-- ne pas introduire une architecture complexe sans bénéfice immédiat.
+Rules:
 
-La future collecte JSON constitue un bon point de départ pour créer des modèles et un service de stockage séparés.
+- extract one responsibility at a time;
+- preserve behavior during extraction;
+- compile after each meaningful extraction;
+- do not hide logic changes inside a refactor;
+- do not create unnecessary abstraction;
+- do not split the project into many files without a clear benefit.
+
+The future JSON history feature is a reasonable point to begin introducing separate models and storage classes.
 
 ---
 
-## 20. Priorités du projet
+## 22. Project priorities
 
-Ordre de priorité :
+Priority order:
 
-1. ne pas faire planter HDT ;
-2. ne pas bloquer les interactions avec Hearthstone ;
-3. exactitude des statistiques ;
-4. absence de double comptage ;
-5. conservation correcte des données entre les phases ;
-6. compatibilité avec HDT ;
-7. compilation reproductible ;
-8. lisibilité du code ;
-9. esthétique ;
-10. fonctions avancées.
+1. never crash HDT;
+2. never block Hearthstone interactions;
+3. report accurate statistics;
+4. prevent double counting;
+5. preserve correct state across phases;
+6. maintain HDT compatibility;
+7. produce `HDT-FinalStatsPlugin.dll` reproducibly;
+8. keep the code understandable;
+9. maintain a clean overlay;
+10. add advanced features.
 
-En cas de conflit, privilégier toujours la stabilité et l’exactitude plutôt qu’une fonctionnalité supplémentaire.
+When priorities conflict, choose stability and accuracy over additional features.
