@@ -566,7 +566,7 @@ Current reference layout:
 
 ```text
 PanelWidth: 250
-PanelHeight: 780
+PanelHeight: 855
 PanelRight: 15
 PanelBottom: 50
 ToggleButtonHeight: 30
@@ -647,6 +647,9 @@ Hero damage dealt
 Max damage dealt
 Hero damage taken
 Max damage taken
+Combat wins
+Combat losses
+Combat draws
 ```
 
 ### 11.1 Gold spent
