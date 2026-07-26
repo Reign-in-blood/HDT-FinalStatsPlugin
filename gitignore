@@ -97,6 +97,7 @@ coverage.*
 *.local
 secrets.json
 appsettings.Development.json
+LISEZ-MOI.txt
 
 # Archive files generated for releases
 *.zip
