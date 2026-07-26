@@ -1,0 +1,141 @@
+﻿FINALSTATSPLUGIN v0.1.23 - PROTOTYPE
+==================================
+
+Nom dans HDT : Battlegrounds Final Stats
+DLL generee : dist\FinalStatsPlugin.dll
+
+FONCTIONNEMENT
+--------------
+Le panneau mesure 250 x 780 pixels.
+Position : 15 pixels depuis le bord droit et 50 pixels depuis le bas.
+Le fond est noir opaque, sans transparence.
+
+Il s'affiche pendant une partie Battlegrounds et conserve le dernier resultat
+apres la fin de la partie. Un bouton de 250 x 30 pixels est place sous le
+panneau. Il affiche "Hide combat stats" quand le panneau est visible et
+"Show combat stats" quand il est masque. Le bouton reste visible afin de
+pouvoir rouvrir le panneau.
+
+
+NOUVEAU DANS LA VERSION 0.1.23
+--------------------------------
+- Correction du double comptage possible des degats de heros avec PREDAMAGE.
+- Le plugin ne conserve plus la somme de plusieurs notifications pendant un
+  meme combat, mais la plus grande valeur recue par chaque heros.
+- Seules les entites dont l'identifiant correspond exactement au HERO_ENTITY
+  du joueur ou de l'adversaire actif sont acceptees.
+- Les copies de heros utilisees pour le classement ou l'affichage sont ignorees.
+- Un impact PREDAMAGE duplique ne peut donc plus doubler le total.
+
+
+NOUVEAU DANS LA VERSION 0.1.22
+--------------------------------
+- Le calcul des degats infliges et recus par les heros n'utilise plus les
+  differences de DAMAGE et ARMOR entre le debut et la fin du combat.
+- Le plugin ecoute maintenant GameEvents.OnEntityWillTakeDamage, alimente par
+  le tag PREDAMAGE de HDT.
+- Seules les entites de type Hero pendant la phase de combat Battlegrounds
+  sont prises en compte ; tous les degats de serviteurs sont ignores.
+- Les degats absorbes par l'armure restent correctement comptes.
+- Un combat nul ne peut plus ajouter artificiellement l'armure adverse aux
+  degats infliges.
+- Max damage dealt / taken conserve le plus grand total d'un combat.
+
+
+MODIFICATIONS v0.1.21
+--------------------
+
+- Ajout d'un bouton compact sous le panneau, de la meme largeur.
+- Texte dynamique : "Show combat stats" / "Hide combat stats".
+- Fond gris fonce, etat survole plus clair et etat presse noir.
+- Petite bordure et coins arrondis assortis au panneau.
+- Quand le panneau est masque, seul le bouton reste affiche.
+- Le bouton HDT "Show / hide" continue egalement de fonctionner.
+- Aucun compteur ni calcul de statistique n'a ete modifie.
+
+MODIFICATIONS v0.1.18
+--------------------
+
+- Fond du panneau entierement noir et opaque.
+- Positionne a 15 pixels du bord droit.
+- Positionne a 50 pixels du bas.
+- Hauteur augmentee de 580 a 780 pixels.
+- Statistiques reorganisees par categories avec separateurs :
+  GLOBAL STATS, BOUGHT CARDS, PLAYED CARDS, CREATURES, BUFFS, HERO et OTHER.
+- Aucun calcul de statistique n'a ete modifie.
+
+MODIFICATIONS v0.1.16
+---------------------
+- Ajout de "Cards bought" : nombre total de cartes obtenues depuis la Taverne.
+- Ajout de "Minions bought" : serviteurs obtenus depuis la Taverne.
+- Ajout de "Spells bought" : sorts de Taverne obtenus depuis la Taverne.
+- La detection memorise les identifiants exacts des entites visibles chez Bob.
+- Une carte est comptee une seule fois quand la meme entite arrive dans la main
+  du joueur.
+- Le type minion ou sort est memorise avant le transfert avec les donnees HDT
+  et HearthDb.
+- Hauteur du panneau augmentee de 520 a 580 pixels.
+
+ORDRE DES STATISTIQUES
+----------------------
+1. Highest turn
+2. Hero damage dealt
+3. Max damage dealt
+4. Hero damage taken
+5. Max damage taken
+6. Gold spent
+7. Cards bought
+8. Minions bought
+9. Spells bought
+10. Played cards
+11. Played minions
+12. Played spells
+13. Tavern rolls
+14. Free rolls gained
+15. Played battlecries
+16. Rally procs
+17. Highest creature
+18. Highest ATK
+19. Highest HP
+20. Spell power
+21. Tavern buff max
+
+LIMITE DE CETTE VERSION
+-----------------------
+Le compteur mesure les cartes qui passent de la Taverne a la main. Une carte
+recuperee gratuitement directement depuis la Taverne peut donc aussi etre
+comptee, meme si aucun or n'a ete depense.
+
+Cette detection doit etre validee en partie, notamment lors de l'achat de la
+troisieme copie d'un serviteur qui cree immediatement un triple.
+
+CORRECTION v0.1.15
+-------------------
+- Correction de la compilation des compteurs d’achats.
+- Utilisation des fonctions existantes TryExtractEntityId et TrimLogLine.
+- Aucun changement dans la logique de détection des achats.
+
+
+CORRECTION v0.1.16
+- Correction de trois appels erronés TryTryExtractEntityId vers TryExtractEntityId.
+- Aucun changement de logique des compteurs.
+
+
+Version 0.1.18 - Correction Gold spent
+---------------------------------------
+- Une vente ne peut plus être interprétée comme une nouvelle dépense.
+- Gold spent additionne uniquement les augmentations de RESOURCES_USED.
+- Les diminutions dues aux ventes ou aux changements de tour servent uniquement de nouvelle référence.
+
+
+Version 0.1.20 : le bouton Show/Hide est enregistré comme zone interactive HDT, sans rendre le reste de l’overlay cliquable.
+
+NOUVEAU DANS LA VERSION 0.1.21
+--------------------------------
+- Pendant une partie, le bouton Show/Hide reste disponible.
+- Quand la partie est terminee et que HDT revient dans le menu :
+  * le bouton est retire ;
+  * le panneau final est force en affichage ;
+  * le panneau reste visible jusqu au debut de la partie suivante.
+- Le choix fait pendant la partie est conserve. Si le panneau etait masque,
+  il pourra revenir masque au debut de la partie suivante.

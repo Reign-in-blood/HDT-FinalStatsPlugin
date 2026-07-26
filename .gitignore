@@ -1,0 +1,9 @@
+bin/
+obj/
+dist/*.dll
+lib/HearthstoneDeckTracker.exe
+lib/HearthDb.dll
+*.user
+*.suo
+*.log
+.vs/
