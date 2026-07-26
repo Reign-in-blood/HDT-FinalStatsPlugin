@@ -661,6 +661,7 @@ Max damage taken
 Combat wins
 Combat losses
 Combat draws
+Match duration
 ```
 
 ### 11.1 Gold spent

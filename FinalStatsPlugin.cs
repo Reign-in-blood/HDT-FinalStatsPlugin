@@ -5,6 +5,7 @@ using Hearthstone_Deck_Tracker.Plugins;
 using Hearthstone_Deck_Tracker.Utility.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -29,7 +30,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 26);
+        public Version Version => new Version(0, 1, 27);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -91,6 +92,7 @@ namespace FinalStatsPlugin
         private Border _panel;
         private Border _toggleButton;
         private TextBlock _toggleButtonText;
+        private TextBlock _matchDurationValue;
         private TextBlock _goldSpentValue;
         private TextBlock _cardsBoughtValue;
         private TextBlock _minionsBoughtValue;
@@ -128,6 +130,10 @@ namespace FinalStatsPlugin
         private bool _showingFinalSummary;
         private bool _newGameEventPending;
         private bool? _previousCombatPhase;
+        private readonly Stopwatch _matchStopwatch = new Stopwatch();
+        private TimeSpan _finalMatchDuration = TimeSpan.Zero;
+        private long _lastDisplayedMatchDurationSecond = -1;
+        private bool _matchDurationStarted;
 
         private int _goldSpent;
         private int _cardsBought;
@@ -275,6 +281,7 @@ namespace FinalStatsPlugin
                 _panel = null;
                 _toggleButton = null;
                 _toggleButtonText = null;
+                _matchDurationValue = null;
                 _goldSpentValue = null;
                 _cardsBoughtValue = null;
                 _minionsBoughtValue = null;
@@ -456,6 +463,9 @@ namespace FinalStatsPlugin
                 return;
 
             FinalizeHeroCombatDamage();
+            _matchStopwatch.Stop();
+            _finalMatchDuration = _matchStopwatch.Elapsed;
+            _lastDisplayedMatchDurationSecond = -1;
 
             _trackingMatch = false;
             _gameEndObserved = true;
@@ -485,6 +495,11 @@ namespace FinalStatsPlugin
                 + " | combatWins=" + _combatWins
                 + " | combatLosses=" + _combatLosses
                 + " | combatDraws=" + _combatDraws
+                + " | durationSeconds="
+                + ((long)_finalMatchDuration.TotalSeconds).ToString(
+                    CultureInfo.InvariantCulture
+                )
+                + " | durationStarted=" + _matchDurationStarted
                 + " | spellBuff=" + _highestTavernSpellAttack
                 + "/" + _highestTavernSpellHealth
                 + " | tavernBuff=" + _highestTavernMinionAttack
@@ -494,6 +509,11 @@ namespace FinalStatsPlugin
 
         private void ResetStatistics()
         {
+            _matchStopwatch.Reset();
+            _finalMatchDuration = TimeSpan.Zero;
+            _lastDisplayedMatchDurationSecond = -1;
+            _matchDurationStarted = false;
+
             _goldSpent = 0;
             _cardsBought = 0;
             _minionsBought = 0;
@@ -675,6 +695,7 @@ namespace FinalStatsPlugin
             int resourcesUsed = GetCurrentResourcesUsed();
             HashSet<int> currentShopIds =
                 CollectCurrentShopEntityIds();
+            TryStartMatchDurationFromShop(currentShopIds);
 
             if (!_rerollTrackingInitialized)
             {
@@ -832,6 +853,29 @@ namespace FinalStatsPlugin
             }
 
             return ids;
+        }
+
+        private void TryStartMatchDurationFromShop(
+            HashSet<int> currentShopIds)
+        {
+            if (
+                _matchDurationStarted
+                || currentShopIds == null
+                || currentShopIds.Count == 0
+            )
+            {
+                return;
+            }
+
+            _matchStopwatch.Restart();
+            _matchDurationStarted = true;
+            _lastDisplayedMatchDurationSecond = -1;
+
+            WriteDiagnostic(
+                "MATCH TIMER START"
+                + " | source=first-shop"
+                + " | shopEntities=" + currentShopIds.Count
+            );
         }
 
         private bool HasShopBeenRefreshed(
@@ -2351,6 +2395,26 @@ namespace FinalStatsPlugin
                 );
             }
 
+            Grid header = new Grid
+            {
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
+                IsHitTestVisible = false
+            };
+
+            header.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(1, GridUnitType.Star)
+                }
+            );
+            header.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = GridLength.Auto
+                }
+            );
+
             TextBlock title = new TextBlock
             {
                 Text = "FINAL STATS",
@@ -2364,6 +2428,36 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
 
+            _matchDurationValue = new TextBlock
+            {
+                Text = "00:00",
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = ValueBrush,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Right,
+                Margin = new Thickness(8, 0, 2, 4),
+                SnapsToDevicePixels = true,
+                IsHitTestVisible = false
+            };
+
+            Typography.SetNumeralAlignment(
+                _matchDurationValue,
+                FontNumeralAlignment.Tabular
+            );
+            Typography.SetNumeralStyle(
+                _matchDurationValue,
+                FontNumeralStyle.Lining
+            );
+
+            Grid.SetColumn(title, 0);
+            Grid.SetColumn(_matchDurationValue, 1);
+
+            header.Children.Add(title);
+            header.Children.Add(_matchDurationValue);
+
             Border separator = new Border
             {
                 Height = 1,
@@ -2372,11 +2466,12 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
 
-            Grid.SetRow(title, 0);
+            Grid.SetRow(header, 0);
             Grid.SetRow(separator, 1);
 
-            root.Children.Add(title);
+            root.Children.Add(header);
             root.Children.Add(separator);
+            _lastDisplayedMatchDurationSecond = -1;
 
             AddCategoryHeader(root, 2, "GLOBAL STATS");
             AddStatRow(root, 3, "Highest turn", out _highestTurnValue);
@@ -2673,6 +2768,7 @@ namespace FinalStatsPlugin
             if (_panel == null)
                 return;
 
+            UpdateMatchDurationValue();
             SetValue(_goldSpentValue, _goldSpent.ToString(CultureInfo.InvariantCulture));
             SetValue(_cardsBoughtValue, _cardsBought.ToString(CultureInfo.InvariantCulture));
             SetValue(_minionsBoughtValue, _minionsBought.ToString(CultureInfo.InvariantCulture));
@@ -2748,6 +2844,55 @@ namespace FinalStatsPlugin
                     _highestTavernMinionHealth
                 )
             );
+        }
+
+        private void UpdateMatchDurationValue()
+        {
+            if (_matchDurationValue == null)
+                return;
+
+            TimeSpan duration = _trackingMatch
+                ? _matchStopwatch.Elapsed
+                : _finalMatchDuration;
+            long elapsedSecond = (long)duration.TotalSeconds;
+
+            // OnUpdate runs roughly every 100 ms. Avoid rewriting the WPF
+            // text unless the displayed second has actually changed.
+            if (elapsedSecond == _lastDisplayedMatchDurationSecond)
+                return;
+
+            _lastDisplayedMatchDurationSecond = elapsedSecond;
+            _matchDurationValue.Text = FormatMatchDuration(duration);
+        }
+
+        private static string FormatMatchDuration(TimeSpan duration)
+        {
+            long totalHours = (long)duration.TotalHours;
+
+            if (totalHours > 0)
+            {
+                return totalHours.ToString(CultureInfo.InvariantCulture)
+                    + ":"
+                    + duration.Minutes.ToString(
+                        "00",
+                        CultureInfo.InvariantCulture
+                    )
+                    + ":"
+                    + duration.Seconds.ToString(
+                        "00",
+                        CultureInfo.InvariantCulture
+                    );
+            }
+
+            return ((int)duration.TotalMinutes).ToString(
+                "00",
+                CultureInfo.InvariantCulture
+            )
+                + ":"
+                + duration.Seconds.ToString(
+                    "00",
+                    CultureInfo.InvariantCulture
+                );
         }
 
         private static string FormatPositiveStats(
