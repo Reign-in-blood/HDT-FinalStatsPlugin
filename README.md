@@ -21,6 +21,7 @@ The plugin currently tracks:
 - Highest hero damage dealt or received in one combat
 - Combat wins, losses and draws
 - Live match duration, preserved in the final summary
+- Last intact minion board displayed after the match
 
 The compact graphite overlay uses crisp, high-contrast typography and can be
 shown or hidden during the game with a dedicated button.

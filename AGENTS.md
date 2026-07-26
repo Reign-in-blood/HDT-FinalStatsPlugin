@@ -184,6 +184,7 @@ AGENTS.md
 FinalStatsPlugin.sln
 FinalStatsPlugin.csproj
 FinalStatsPlugin.cs
+FinalBoardSummaryOverlay.cs
 Build.bat
 find_hdt_assembly.ps1
 README.md
@@ -216,6 +217,14 @@ It contains most of the plugin logic, including:
 - diagnostic logging.
 
 Do not assume the source file has already been split into multiple services.
+
+### `FinalBoardSummaryOverlay.cs`
+
+This file contains the separate WPF overlay used to display the last intact
+Battlegrounds minion board after the match.
+
+It reuses HDT's public `BattlegroundsMinion` control and must remain
+non-interactive.
 
 ### `FinalStatsPlugin.csproj`
 
@@ -573,6 +582,17 @@ ToggleButtonHeight: 30
 ToggleButtonGap: 6
 StatRowHeight: 23
 CategoryHeaderHeight: 20
+```
+
+Current final-board summary layout:
+
+```text
+Width: 900
+Height: 220
+Left: 305
+Bottom: 100
+Top corner radius: 0
+Bottom corner radius: 36
 ```
 
 Current visual direction:
