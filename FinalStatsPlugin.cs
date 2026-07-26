@@ -28,7 +28,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 24);
+        public Version Version => new Version(0, 1, 25);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
         // ------------------------------------------------------------
 
         private const double PanelWidth = 250;
-        private const double PanelHeight = 780;
+        private const double PanelHeight = 855;
         private const double PanelRight = 15;
         private const double PanelBottom = 50;
         private const double ToggleButtonHeight = 30;
@@ -92,6 +92,9 @@ namespace FinalStatsPlugin
         private TextBlock _maxHeroDamageDealtValue;
         private TextBlock _heroDamageTakenValue;
         private TextBlock _maxHeroDamageTakenValue;
+        private TextBlock _combatWinsValue;
+        private TextBlock _combatLossesValue;
+        private TextBlock _combatDrawsValue;
         private TextBlock _tavernSpellBuffValue;
         private TextBlock _tavernMinionBuffValue;
 
@@ -132,6 +135,9 @@ namespace FinalStatsPlugin
         private int _maxHeroDamageDealt;
         private int _heroDamageTaken;
         private int _maxHeroDamageTaken;
+        private int _combatWins;
+        private int _combatLosses;
+        private int _combatDraws;
         private int _highestTavernSpellAttack;
         private int _highestTavernSpellHealth;
         private int _highestTavernMinionAttack;
@@ -270,6 +276,9 @@ namespace FinalStatsPlugin
                 _maxHeroDamageDealtValue = null;
                 _heroDamageTakenValue = null;
                 _maxHeroDamageTakenValue = null;
+                _combatWinsValue = null;
+                _combatLossesValue = null;
+                _combatDrawsValue = null;
                 _tavernSpellBuffValue = null;
                 _tavernMinionBuffValue = null;
             });
@@ -455,6 +464,9 @@ namespace FinalStatsPlugin
                 + " | maxDamageDealt=" + _maxHeroDamageDealt
                 + " | damageTaken=" + _heroDamageTaken
                 + " | maxDamageTaken=" + _maxHeroDamageTaken
+                + " | combatWins=" + _combatWins
+                + " | combatLosses=" + _combatLosses
+                + " | combatDraws=" + _combatDraws
                 + " | spellBuff=" + _highestTavernSpellAttack
                 + "/" + _highestTavernSpellHealth
                 + " | tavernBuff=" + _highestTavernMinionAttack
@@ -488,6 +500,9 @@ namespace FinalStatsPlugin
             _maxHeroDamageDealt = 0;
             _heroDamageTaken = 0;
             _maxHeroDamageTaken = 0;
+            _combatWins = 0;
+            _combatLosses = 0;
+            _combatDraws = 0;
             _highestTavernSpellAttack = 0;
             _highestTavernSpellHealth = 0;
             _highestTavernMinionAttack = 0;
@@ -1574,15 +1589,44 @@ namespace FinalStatsPlugin
                 );
             }
 
+            string result;
+
+            if (damageDealt > 0 && damageTaken == 0)
+            {
+                _combatWins++;
+                result = "win";
+            }
+            else if (damageTaken > 0 && damageDealt == 0)
+            {
+                _combatLosses++;
+                result = "loss";
+            }
+            else if (damageDealt == 0 && damageTaken == 0)
+            {
+                _combatDraws++;
+                result = "draw";
+            }
+            else
+            {
+                // Both heroes taking damage in one Battlegrounds combat is
+                // not a valid result. Keep the damage totals, but do not
+                // invent a win, loss, or draw.
+                result = "ambiguous";
+            }
+
             WriteDiagnostic(
                 "HERO DAMAGE COMBAT END"
                 + " | source=PREDAMAGE"
                 + " | dealt=" + damageDealt
                 + " | taken=" + damageTaken
+                + " | result=" + result
                 + " | totalDealt=" + _heroDamageDealt
                 + " | totalTaken=" + _heroDamageTaken
                 + " | maxDealt=" + _maxHeroDamageDealt
                 + " | maxTaken=" + _maxHeroDamageTaken
+                + " | wins=" + _combatWins
+                + " | losses=" + _combatLosses
+                + " | draws=" + _combatDraws
             );
 
             ResetHeroCombatDamageSnapshot();
@@ -2270,7 +2314,7 @@ namespace FinalStatsPlugin
 
             Grid root = new Grid();
 
-            for (int i = 0; i < 30; i++)
+            for (int i = 0; i < 33; i++)
             {
                 root.RowDefinitions.Add(
                     new RowDefinition
@@ -2337,8 +2381,11 @@ namespace FinalStatsPlugin
             AddStatRow(root, 26, "Max damage dealt", out _maxHeroDamageDealtValue);
             AddStatRow(root, 27, "Hero damage taken", out _heroDamageTakenValue);
             AddStatRow(root, 28, "Max damage taken", out _maxHeroDamageTakenValue);
+            AddStatRow(root, 29, "Combat wins", out _combatWinsValue);
+            AddStatRow(root, 30, "Combat losses", out _combatLossesValue);
+            AddStatRow(root, 31, "Combat draws", out _combatDrawsValue);
 
-            AddCategoryHeader(root, 29, "OTHER");
+            AddCategoryHeader(root, 32, "OTHER");
 
             _panel = new Border
             {
@@ -2617,6 +2664,18 @@ namespace FinalStatsPlugin
             SetValue(
                 _maxHeroDamageTakenValue,
                 _maxHeroDamageTaken.ToString(CultureInfo.InvariantCulture)
+            );
+            SetValue(
+                _combatWinsValue,
+                _combatWins.ToString(CultureInfo.InvariantCulture)
+            );
+            SetValue(
+                _combatLossesValue,
+                _combatLosses.ToString(CultureInfo.InvariantCulture)
+            );
+            SetValue(
+                _combatDrawsValue,
+                _combatDraws.ToString(CultureInfo.InvariantCulture)
             );
             SetValue(
                 _tavernSpellBuffValue,

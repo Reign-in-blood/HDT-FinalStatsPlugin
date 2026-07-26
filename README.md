@@ -19,6 +19,7 @@ The plugin currently tracks:
 - Tavern and spell power buffs
 - Hero damage dealt and received
 - Highest hero damage dealt or received in one combat
+- Combat wins, losses and draws
 
 The overlay can be shown or hidden during the game with a dedicated button.
 
