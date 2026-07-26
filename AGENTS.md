@@ -566,12 +566,23 @@ Current reference layout:
 
 ```text
 PanelWidth: 250
-PanelHeight: 855
+PanelHeight: 750
 PanelRight: 15
 PanelBottom: 50
 ToggleButtonHeight: 30
 ToggleButtonGap: 6
+StatRowHeight: 23
+CategoryHeaderHeight: 20
 ```
+
+Current visual direction:
+
+- compact graphite background;
+- Segoe UI with display-optimized rendering;
+- tabular lining digits for statistic values;
+- restrained gold accents;
+- semantic colors for combat wins, losses, and draws;
+- subtle borders and category dividers.
 
 ### During a Battlegrounds match
 
