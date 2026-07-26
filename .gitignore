@@ -1,9 +1,104 @@
-bin/
-obj/
-dist/*.dll
-lib/HearthstoneDeckTracker.exe
-lib/HearthDb.dll
+# ============================================
+# HDT-FinalStatsPlugin - Git ignore rules
+# ============================================
+
+# Visual Studio / IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Build outputs
+bin/
+obj/
+dist/
+Debug/
+Release/
+x64/
+x86/
+[Bb]uild/
+[Aa]rtifacts/
+
+# Compiled files
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.ilk
+*.exp
+*.lib
+*.obj
+*.cache
+
+# NuGet / MSBuild generated files
+*.csproj.nuget.dgspec.json
+*.csproj.nuget.g.props
+*.csproj.nuget.g.targets
+project.assets.json
+project.nuget.cache
+packages/
+.nuget/
+
+# Local HDT dependencies
+lib/*
+!lib/PLACEHOLDER.txt
+!lib/README.md
+
+# Logs and diagnostics
+logs/
 *.log
-.vs/
+*.trace
+*.tmp
+*.temp
+FinalStatsPlugin_debug.log
+
+# Local project inspection files
+arborescence.txt
+
+# Windows files
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary and backup files
+*~
+*.bak
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+
+# Test / coverage output
+TestResults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+appsettings.Development.json
+LISEZ-MOI.txt
+
+# Archive files generated for releases
+*.zip
+*.7z
+*.rar
