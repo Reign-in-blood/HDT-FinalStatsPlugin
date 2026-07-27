@@ -3,6 +3,7 @@ using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Enums.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using Hearthstone_Deck_Tracker.Plugins;
+using Hearthstone_Deck_Tracker.Stats;
 using Hearthstone_Deck_Tracker.Utility.Extensions;
 using System;
 using System.Collections.Generic;
@@ -32,7 +33,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 29);
+        public Version Version => new Version(0, 1, 30);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -141,6 +142,12 @@ namespace FinalStatsPlugin
         private bool _hasFinalBoardSnapshot;
         private bool _finalBoardNeedsRefresh;
         private bool _finalBoardRenderFailed;
+        private GameStats _finalGameStats;
+        private string _finalHeroName;
+        private int _finalPlacement;
+        private int? _finalMmrDelta;
+        private bool _finalMmrResolved;
+        private DateTime _finalMmrLookupDeadlineUtc;
         private readonly Stopwatch _matchStopwatch = new Stopwatch();
         private TimeSpan _finalMatchDuration = TimeSpan.Zero;
         private long _lastDisplayedMatchDurationSecond = -1;
@@ -368,6 +375,8 @@ namespace FinalStatsPlugin
                     FinishMatch();
                 }
 
+                TryRefreshFinalMmrDelta();
+
                 Core.OverlayCanvas.Dispatcher.Invoke(() =>
                 {
                     CreateOverlay();
@@ -408,6 +417,8 @@ namespace FinalStatsPlugin
 
             try
             {
+                CaptureFinalMatchHeaderData();
+
                 if (_trackingMatch)
                 {
                     if (_previousCombatPhase == false)
@@ -523,6 +534,8 @@ namespace FinalStatsPlugin
             _showingFinalSummary = false;
             _finalSummaryAllowedInCurrentMode = true;
             _previousCombatPhase = null;
+            _finalGameStats = Core.Game.CurrentGameStats;
+            CaptureFinalMatchHeaderData();
 
             WriteDiagnostic("MATCH START");
         }
@@ -532,10 +545,13 @@ namespace FinalStatsPlugin
             if (!_trackingMatch)
                 return;
 
+            CaptureFinalMatchHeaderData();
             FinalizeHeroCombatDamage();
             _matchStopwatch.Stop();
             _finalMatchDuration = _matchStopwatch.Elapsed;
             _lastDisplayedMatchDurationSecond = -1;
+            _finalMmrLookupDeadlineUtc =
+                DateTime.UtcNow.AddSeconds(30);
 
             _trackingMatch = false;
             _gameEndObserved = true;
@@ -587,6 +603,12 @@ namespace FinalStatsPlugin
             _hasFinalBoardSnapshot = false;
             _finalBoardNeedsRefresh = true;
             _finalBoardRenderFailed = false;
+            _finalGameStats = null;
+            _finalHeroName = null;
+            _finalPlacement = 0;
+            _finalMmrDelta = null;
+            _finalMmrResolved = false;
+            _finalMmrLookupDeadlineUtc = DateTime.MinValue;
 
             _goldSpent = 0;
             _cardsBought = 0;
@@ -647,6 +669,9 @@ namespace FinalStatsPlugin
 
         private void TrackMatch()
         {
+            if (_finalGameStats == null)
+                _finalGameStats = Core.Game.CurrentGameStats;
+
             bool isCombatPhase = Core.Game.IsBattlegroundsCombatPhase;
 
             if (!_previousCombatPhase.HasValue)
@@ -685,6 +710,8 @@ namespace FinalStatsPlugin
         {
             try
             {
+                CaptureFinalMatchHeaderData();
+
                 List<Entity> entities = Core.Game.Entities.Values
                     .Where(
                         entity =>
@@ -723,6 +750,136 @@ namespace FinalStatsPlugin
                     + " | error=" + ex
                 );
             }
+        }
+
+        private void CaptureFinalMatchHeaderData()
+        {
+            try
+            {
+                if (Core.Game.CurrentGameStats != null)
+                {
+                    _finalGameStats =
+                        Core.Game.CurrentGameStats;
+                }
+
+                int playerId = Core.Game.Player.Id;
+                Entity hero = Core.Game.Entities.Values
+                    .FirstOrDefault(
+                        entity =>
+                            entity != null
+                            && entity.IsControlledBy(playerId)
+                            && entity.HasTag(
+                                GameTag.PLAYER_LEADERBOARD_PLACE
+                            )
+                    );
+
+                if (hero == null)
+                    return;
+
+                bool changed = false;
+                string heroName =
+                    hero.Card?.LocalizedName;
+
+                if (string.IsNullOrWhiteSpace(heroName))
+                    heroName = hero.Card?.Name;
+
+                if (
+                    !string.IsNullOrWhiteSpace(heroName)
+                    && !string.Equals(
+                        _finalHeroName,
+                        heroName,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    _finalHeroName = heroName;
+                    changed = true;
+                }
+
+                int placement = hero.GetTag(
+                    GameTag.PLAYER_LEADERBOARD_PLACE
+                );
+
+                if (
+                    placement > 0
+                    && placement != _finalPlacement
+                )
+                {
+                    _finalPlacement = placement;
+                    changed = true;
+                }
+
+                if (changed)
+                    _finalBoardNeedsRefresh = true;
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnostic(
+                    "FINAL HEADER CAPTURE ERROR | " + ex
+                );
+            }
+        }
+
+        private void TryRefreshFinalMmrDelta()
+        {
+            if (
+                _trackingMatch
+                || !_gameEndObserved
+                || _finalMmrResolved
+                || _finalGameStats == null
+                || _finalMmrLookupDeadlineUtc
+                    == DateTime.MinValue
+            )
+            {
+                return;
+            }
+
+            if (DateTime.UtcNow > _finalMmrLookupDeadlineUtc)
+            {
+                _finalMmrResolved = true;
+                WriteDiagnostic(
+                    "FINAL MMR UNAVAILABLE"
+                );
+                return;
+            }
+
+            int ratingBefore =
+                _finalGameStats.BattlegroundsRating;
+            int ratingAfter =
+                _finalGameStats.BattlegroundsRatingAfter;
+
+            // HDT fills RatingAfter asynchronously after the game. Zero is
+            // also its unavailable value, so wait instead of showing a
+            // false loss or a false +0.
+            if (ratingBefore < 0 || ratingAfter <= 0)
+                return;
+
+            int delta = ratingAfter - ratingBefore;
+
+            // Mirror HDT's own defensive behavior for implausible rating
+            // changes caused by missing or stale post-game data.
+            if (Math.Abs(delta) > 500)
+            {
+                _finalMmrResolved = true;
+                WriteDiagnostic(
+                    "FINAL MMR REJECTED"
+                    + " | before=" + ratingBefore
+                    + " | after=" + ratingAfter
+                    + " | delta=" + delta
+                );
+                return;
+            }
+
+            _finalMmrDelta = delta;
+            _finalMmrResolved = true;
+            _finalBoardNeedsRefresh = true;
+
+            WriteDiagnostic(
+                "FINAL MMR"
+                + " | before=" + ratingBefore
+                + " | after=" + ratingAfter
+                + " | delta=" + delta
+            );
         }
 
         // ------------------------------------------------------------
@@ -3116,8 +3273,20 @@ namespace FinalStatsPlugin
             {
                 try
                 {
-                    _finalBoardSummaryOverlay.UpdateBoard(
-                        _finalBoardSnapshot
+                    _finalBoardSummaryOverlay.UpdateSummary(
+                        _finalBoardSnapshot,
+                        new FinalBoardSummaryData
+                        {
+                            HeroName = _finalHeroName,
+                            Placement = _finalPlacement,
+                            MmrDelta = _finalMmrDelta,
+                            Turn = _highestTurn,
+                            HighestCreatureAttack =
+                                _highestCreatureAttack,
+                            HighestCreatureHealth =
+                                _highestCreatureHealth,
+                            Duration = _finalMatchDuration
+                        }
                     );
                     _finalBoardNeedsRefresh = false;
                 }

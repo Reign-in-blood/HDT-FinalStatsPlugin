@@ -595,6 +595,20 @@ Top corner radius: 0
 Bottom corner radius: 36
 ```
 
+The final-board header displays:
+
+- hero name;
+- final placement;
+- Battlegrounds MMR change when HDT provides it;
+- highest turn reached;
+- highest combined creature Attack and Health;
+- total match duration.
+
+The MMR result may be populated asynchronously after the match. Keep the
+retained `GameStats` reference for a short bounded lookup period, display an
+unavailable value instead of inventing a delta, and reject implausible stale
+changes.
+
 Current visual direction:
 
 - compact graphite background;
