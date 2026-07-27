@@ -587,12 +587,12 @@ CategoryHeaderHeight: 20
 Current final-board summary layout:
 
 ```text
-Width: 900
-Height: 220
-Left: 305
-Bottom: 100
+Width: 930
+Height: 400
+Top: 85
+Right: 290
 Top corner radius: 0
-Bottom corner radius: 36
+Bottom corner radius: 0
 ```
 
 The final-board header displays:
@@ -604,10 +604,26 @@ The final-board header displays:
 - highest combined creature Attack and Health;
 - total match duration.
 
+The upper detail area currently displays the final hero card portrait and
+reserves room for later hero-power, Trinket, and seasonal-mechanic additions.
+
 The MMR result may be populated asynchronously after the match. Keep the
 retained `GameStats` reference for a short bounded lookup period, display an
 unavailable value instead of inventing a delta, and reject implausible stale
 changes.
+
+The test screenshot behavior automatically saves the rendered final-board
+panel as a PNG in the Windows `MyPictures` special folder:
+
+```text
+Hearthstone final board\FinalBoard_YYYY-MM-DD_HH-mm-ss_3rd.png
+```
+
+Use `Environment.SpecialFolder.MyPictures`; never hard-code a username or a
+localized `Pictures` path. `FinalBoardScreenshotMaximumPlacement` is currently
+`8` for testing every placement. Change only that limit to `3` after validation
+to retain Top 1 through Top 3. Screenshot failures must be logged and must not
+affect the live overlay.
 
 Current visual direction:
 

@@ -24,6 +24,13 @@ The plugin currently tracks:
 - Last intact minion board displayed after the match, with the hero, final
   placement, MMR change when available, turn count, highest creature and
   total duration
+- Final hero card portrait displayed above the saved board
+- Automatic PNG capture of the final board in
+  `Pictures\Hearthstone final board`
+
+The current test build saves final-board screenshots for every placement.
+After validation, the prepared placement limit can be changed from `8` to `3`
+to keep only Top 1, Top 2 and Top 3 results.
 
 The compact graphite overlay uses crisp, high-contrast typography and can be
 shown or hidden during and after the game with a dedicated button. The final
