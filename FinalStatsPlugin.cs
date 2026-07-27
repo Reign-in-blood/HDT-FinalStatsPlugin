@@ -1,12 +1,16 @@
 ﻿using HearthDb.Enums;
 using Hearthstone_Deck_Tracker.API;
+using Hearthstone_Deck_Tracker.Enums.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using Hearthstone_Deck_Tracker.Plugins;
+using Hearthstone_Deck_Tracker.Stats;
 using Hearthstone_Deck_Tracker.Utility.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,7 +33,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 26);
+        public Version Version => new Version(0, 1, 30);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -91,6 +95,7 @@ namespace FinalStatsPlugin
         private Border _panel;
         private Border _toggleButton;
         private TextBlock _toggleButtonText;
+        private TextBlock _matchDurationValue;
         private TextBlock _goldSpentValue;
         private TextBlock _cardsBoughtValue;
         private TextBlock _minionsBoughtValue;
@@ -126,8 +131,27 @@ namespace FinalStatsPlugin
         private bool _hasMatchData;
         private bool _gameEndObserved;
         private bool _showingFinalSummary;
+        private bool _finalSummaryAllowedInCurrentMode = true;
         private bool _newGameEventPending;
         private bool? _previousCombatPhase;
+        private readonly FinalBoardSummaryOverlay
+            _finalBoardSummaryOverlay =
+                new FinalBoardSummaryOverlay();
+        private readonly List<Entity> _finalBoardSnapshot =
+            new List<Entity>();
+        private bool _hasFinalBoardSnapshot;
+        private bool _finalBoardNeedsRefresh;
+        private bool _finalBoardRenderFailed;
+        private GameStats _finalGameStats;
+        private string _finalHeroName;
+        private int _finalPlacement;
+        private int? _finalMmrDelta;
+        private bool _finalMmrResolved;
+        private DateTime _finalMmrLookupDeadlineUtc;
+        private readonly Stopwatch _matchStopwatch = new Stopwatch();
+        private TimeSpan _finalMatchDuration = TimeSpan.Zero;
+        private long _lastDisplayedMatchDurationSecond = -1;
+        private bool _matchDurationStarted;
 
         private int _goldSpent;
         private int _cardsBought;
@@ -241,6 +265,7 @@ namespace FinalStatsPlugin
             GameEvents.OnGameStart.Add(HandleGameStart);
             GameEvents.OnGameEnd.Add(HandleGameEnd);
             GameEvents.OnInMenu.Add(HandleInMenu);
+            GameEvents.OnModeChanged.Add(HandleModeChanged);
             GameEvents.OnEntityWillTakeDamage.Add(
                 HandleEntityWillTakeDamage
             );
@@ -251,6 +276,7 @@ namespace FinalStatsPlugin
                 UpdateOverlayValues();
                 UpdateOverlayVisibility();
                 PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
             });
         }
 
@@ -272,9 +298,12 @@ namespace FinalStatsPlugin
                     Core.OverlayCanvas.Children.Remove(_toggleButton);
                 }
 
+                _finalBoardSummaryOverlay.Remove();
+
                 _panel = null;
                 _toggleButton = null;
                 _toggleButtonText = null;
+                _matchDurationValue = null;
                 _goldSpentValue = null;
                 _cardsBoughtValue = null;
                 _minionsBoughtValue = null;
@@ -304,10 +333,6 @@ namespace FinalStatsPlugin
 
         public void OnButtonPress()
         {
-            // The final summary must remain visible in the menu.
-            if (_showingFinalSummary)
-                return;
-
             _pluginVisible = !_pluginVisible;
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
@@ -315,6 +340,7 @@ namespace FinalStatsPlugin
                 CreateOverlay();
                 UpdateOverlayVisibility();
                 PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
             });
         }
 
@@ -349,12 +375,15 @@ namespace FinalStatsPlugin
                     FinishMatch();
                 }
 
+                TryRefreshFinalMmrDelta();
+
                 Core.OverlayCanvas.Dispatcher.Invoke(() =>
                 {
                     CreateOverlay();
                     UpdateOverlayValues();
                     UpdateOverlayVisibility();
                     PositionOverlay();
+                    UpdateFinalBoardSummaryOverlay();
                 });
             }
             catch (Exception ex)
@@ -371,11 +400,13 @@ namespace FinalStatsPlugin
             _newGameEventPending = true;
             _gameEndObserved = false;
             _showingFinalSummary = false;
+            _finalSummaryAllowedInCurrentMode = true;
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
             {
                 UpdateOverlayVisibility();
                 PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
             });
         }
 
@@ -386,8 +417,17 @@ namespace FinalStatsPlugin
 
             try
             {
+                CaptureFinalMatchHeaderData();
+
                 if (_trackingMatch)
                 {
+                    if (_previousCombatPhase == false)
+                    {
+                        CaptureFinalBoardSnapshot(
+                            "game-end-tavern"
+                        );
+                    }
+
                     ProcessPowerLog();
                     TrackRerollStatistics();
                     TrackHighestStats();
@@ -417,11 +457,18 @@ namespace FinalStatsPlugin
             if (!_hasMatchData)
                 return;
 
-            // In the menu, always show the final result and remove the
-            // in-game toggle button. _pluginVisible is intentionally kept
-            // unchanged so the previous in-game preference returns when
-            // the next match starts.
+            bool firstFinalMenuArrival =
+                !_showingFinalSummary;
             _showingFinalSummary = true;
+            _finalSummaryAllowedInCurrentMode =
+                IsFinalSummaryModeAllowed(
+                    Core.Game.CurrentMode
+                );
+
+            // Show the complete final result once when arriving from the
+            // match. Repeated menu events must not undo a manual Hide.
+            if (firstFinalMenuArrival)
+                _pluginVisible = true;
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
             {
@@ -429,7 +476,47 @@ namespace FinalStatsPlugin
                 UpdateOverlayValues();
                 UpdateOverlayVisibility();
                 PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
             });
+        }
+
+        private void HandleModeChanged(Mode mode)
+        {
+            if (!_loaded || !_showingFinalSummary)
+                return;
+
+            bool allowed =
+                IsFinalSummaryModeAllowed(mode);
+
+            if (
+                _finalSummaryAllowedInCurrentMode
+                == allowed
+            )
+            {
+                return;
+            }
+
+            _finalSummaryAllowedInCurrentMode = allowed;
+
+            WriteDiagnostic(
+                "FINAL SUMMARY MODE"
+                + " | mode=" + mode
+                + " | allowed=" + allowed
+            );
+
+            Core.OverlayCanvas.Dispatcher.Invoke(() =>
+            {
+                UpdateOverlayVisibility();
+                PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
+            });
+        }
+
+        private static bool IsFinalSummaryModeAllowed(
+            Mode mode)
+        {
+            return mode == Mode.BACON
+                || mode == Mode.GAMEPLAY;
         }
 
         // ------------------------------------------------------------
@@ -445,7 +532,10 @@ namespace FinalStatsPlugin
             _gameEndObserved = false;
             _newGameEventPending = false;
             _showingFinalSummary = false;
+            _finalSummaryAllowedInCurrentMode = true;
             _previousCombatPhase = null;
+            _finalGameStats = Core.Game.CurrentGameStats;
+            CaptureFinalMatchHeaderData();
 
             WriteDiagnostic("MATCH START");
         }
@@ -455,7 +545,13 @@ namespace FinalStatsPlugin
             if (!_trackingMatch)
                 return;
 
+            CaptureFinalMatchHeaderData();
             FinalizeHeroCombatDamage();
+            _matchStopwatch.Stop();
+            _finalMatchDuration = _matchStopwatch.Elapsed;
+            _lastDisplayedMatchDurationSecond = -1;
+            _finalMmrLookupDeadlineUtc =
+                DateTime.UtcNow.AddSeconds(30);
 
             _trackingMatch = false;
             _gameEndObserved = true;
@@ -485,6 +581,11 @@ namespace FinalStatsPlugin
                 + " | combatWins=" + _combatWins
                 + " | combatLosses=" + _combatLosses
                 + " | combatDraws=" + _combatDraws
+                + " | durationSeconds="
+                + ((long)_finalMatchDuration.TotalSeconds).ToString(
+                    CultureInfo.InvariantCulture
+                )
+                + " | durationStarted=" + _matchDurationStarted
                 + " | spellBuff=" + _highestTavernSpellAttack
                 + "/" + _highestTavernSpellHealth
                 + " | tavernBuff=" + _highestTavernMinionAttack
@@ -494,6 +595,21 @@ namespace FinalStatsPlugin
 
         private void ResetStatistics()
         {
+            _matchStopwatch.Reset();
+            _finalMatchDuration = TimeSpan.Zero;
+            _lastDisplayedMatchDurationSecond = -1;
+            _matchDurationStarted = false;
+            _finalBoardSnapshot.Clear();
+            _hasFinalBoardSnapshot = false;
+            _finalBoardNeedsRefresh = true;
+            _finalBoardRenderFailed = false;
+            _finalGameStats = null;
+            _finalHeroName = null;
+            _finalPlacement = 0;
+            _finalMmrDelta = null;
+            _finalMmrResolved = false;
+            _finalMmrLookupDeadlineUtc = DateTime.MinValue;
+
             _goldSpent = 0;
             _cardsBought = 0;
             _minionsBought = 0;
@@ -553,6 +669,9 @@ namespace FinalStatsPlugin
 
         private void TrackMatch()
         {
+            if (_finalGameStats == null)
+                _finalGameStats = Core.Game.CurrentGameStats;
+
             bool isCombatPhase = Core.Game.IsBattlegroundsCombatPhase;
 
             if (!_previousCombatPhase.HasValue)
@@ -565,7 +684,12 @@ namespace FinalStatsPlugin
             else if (_previousCombatPhase.Value != isCombatPhase)
             {
                 if (isCombatPhase)
+                {
+                    CaptureFinalBoardSnapshot(
+                        "tavern-to-combat"
+                    );
                     StartCombatTracking();
+                }
                 else
                     StopCombatTracking();
 
@@ -580,6 +704,182 @@ namespace FinalStatsPlugin
             TrackHighestTurnAndTavernBonuses();
             TrackEntityTransitions(isCombatPhase);
             UpdatePlayedCardTotal();
+        }
+
+        private void CaptureFinalBoardSnapshot(string source)
+        {
+            try
+            {
+                CaptureFinalMatchHeaderData();
+
+                List<Entity> entities = Core.Game.Entities.Values
+                    .Where(
+                        entity =>
+                            entity != null
+                            && entity.IsMinion
+                            && entity.IsInPlay
+                            && entity.IsControlledBy(
+                                Core.Game.Player.Id
+                            )
+                    )
+                    .OrderBy(
+                        entity =>
+                            entity.GetTag(
+                                GameTag.ZONE_POSITION
+                            )
+                    )
+                    .Select(entity => entity.Clone())
+                    .ToList();
+
+                _finalBoardSnapshot.Clear();
+                _finalBoardSnapshot.AddRange(entities);
+                _hasFinalBoardSnapshot = true;
+                _finalBoardNeedsRefresh = true;
+
+                WriteDiagnostic(
+                    "FINAL BOARD SNAPSHOT"
+                    + " | source=" + source
+                    + " | minions=" + entities.Count
+                );
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnostic(
+                    "FINAL BOARD SNAPSHOT ERROR"
+                    + " | source=" + source
+                    + " | error=" + ex
+                );
+            }
+        }
+
+        private void CaptureFinalMatchHeaderData()
+        {
+            try
+            {
+                if (Core.Game.CurrentGameStats != null)
+                {
+                    _finalGameStats =
+                        Core.Game.CurrentGameStats;
+                }
+
+                int playerId = Core.Game.Player.Id;
+                Entity hero = Core.Game.Entities.Values
+                    .FirstOrDefault(
+                        entity =>
+                            entity != null
+                            && entity.IsControlledBy(playerId)
+                            && entity.HasTag(
+                                GameTag.PLAYER_LEADERBOARD_PLACE
+                            )
+                    );
+
+                if (hero == null)
+                    return;
+
+                bool changed = false;
+                string heroName =
+                    hero.Card?.LocalizedName;
+
+                if (string.IsNullOrWhiteSpace(heroName))
+                    heroName = hero.Card?.Name;
+
+                if (
+                    !string.IsNullOrWhiteSpace(heroName)
+                    && !string.Equals(
+                        _finalHeroName,
+                        heroName,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    _finalHeroName = heroName;
+                    changed = true;
+                }
+
+                int placement = hero.GetTag(
+                    GameTag.PLAYER_LEADERBOARD_PLACE
+                );
+
+                if (
+                    placement > 0
+                    && placement != _finalPlacement
+                )
+                {
+                    _finalPlacement = placement;
+                    changed = true;
+                }
+
+                if (changed)
+                    _finalBoardNeedsRefresh = true;
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnostic(
+                    "FINAL HEADER CAPTURE ERROR | " + ex
+                );
+            }
+        }
+
+        private void TryRefreshFinalMmrDelta()
+        {
+            if (
+                _trackingMatch
+                || !_gameEndObserved
+                || _finalMmrResolved
+                || _finalGameStats == null
+                || _finalMmrLookupDeadlineUtc
+                    == DateTime.MinValue
+            )
+            {
+                return;
+            }
+
+            if (DateTime.UtcNow > _finalMmrLookupDeadlineUtc)
+            {
+                _finalMmrResolved = true;
+                WriteDiagnostic(
+                    "FINAL MMR UNAVAILABLE"
+                );
+                return;
+            }
+
+            int ratingBefore =
+                _finalGameStats.BattlegroundsRating;
+            int ratingAfter =
+                _finalGameStats.BattlegroundsRatingAfter;
+
+            // HDT fills RatingAfter asynchronously after the game. Zero is
+            // also its unavailable value, so wait instead of showing a
+            // false loss or a false +0.
+            if (ratingBefore < 0 || ratingAfter <= 0)
+                return;
+
+            int delta = ratingAfter - ratingBefore;
+
+            // Mirror HDT's own defensive behavior for implausible rating
+            // changes caused by missing or stale post-game data.
+            if (Math.Abs(delta) > 500)
+            {
+                _finalMmrResolved = true;
+                WriteDiagnostic(
+                    "FINAL MMR REJECTED"
+                    + " | before=" + ratingBefore
+                    + " | after=" + ratingAfter
+                    + " | delta=" + delta
+                );
+                return;
+            }
+
+            _finalMmrDelta = delta;
+            _finalMmrResolved = true;
+            _finalBoardNeedsRefresh = true;
+
+            WriteDiagnostic(
+                "FINAL MMR"
+                + " | before=" + ratingBefore
+                + " | after=" + ratingAfter
+                + " | delta=" + delta
+            );
         }
 
         // ------------------------------------------------------------
@@ -675,6 +975,7 @@ namespace FinalStatsPlugin
             int resourcesUsed = GetCurrentResourcesUsed();
             HashSet<int> currentShopIds =
                 CollectCurrentShopEntityIds();
+            TryStartMatchDurationFromShop(currentShopIds);
 
             if (!_rerollTrackingInitialized)
             {
@@ -832,6 +1133,29 @@ namespace FinalStatsPlugin
             }
 
             return ids;
+        }
+
+        private void TryStartMatchDurationFromShop(
+            HashSet<int> currentShopIds)
+        {
+            if (
+                _matchDurationStarted
+                || currentShopIds == null
+                || currentShopIds.Count == 0
+            )
+            {
+                return;
+            }
+
+            _matchStopwatch.Restart();
+            _matchDurationStarted = true;
+            _lastDisplayedMatchDurationSecond = -1;
+
+            WriteDiagnostic(
+                "MATCH TIMER START"
+                + " | source=first-shop"
+                + " | shopEntities=" + currentShopIds.Count
+            );
         }
 
         private bool HasShopBeenRefreshed(
@@ -2351,6 +2675,26 @@ namespace FinalStatsPlugin
                 );
             }
 
+            Grid header = new Grid
+            {
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
+                IsHitTestVisible = false
+            };
+
+            header.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(1, GridUnitType.Star)
+                }
+            );
+            header.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = GridLength.Auto
+                }
+            );
+
             TextBlock title = new TextBlock
             {
                 Text = "FINAL STATS",
@@ -2364,6 +2708,36 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
 
+            _matchDurationValue = new TextBlock
+            {
+                Text = "00:00",
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = ValueBrush,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Right,
+                Margin = new Thickness(8, 0, 2, 4),
+                SnapsToDevicePixels = true,
+                IsHitTestVisible = false
+            };
+
+            Typography.SetNumeralAlignment(
+                _matchDurationValue,
+                FontNumeralAlignment.Tabular
+            );
+            Typography.SetNumeralStyle(
+                _matchDurationValue,
+                FontNumeralStyle.Lining
+            );
+
+            Grid.SetColumn(title, 0);
+            Grid.SetColumn(_matchDurationValue, 1);
+
+            header.Children.Add(title);
+            header.Children.Add(_matchDurationValue);
+
             Border separator = new Border
             {
                 Height = 1,
@@ -2372,11 +2746,12 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
 
-            Grid.SetRow(title, 0);
+            Grid.SetRow(header, 0);
             Grid.SetRow(separator, 1);
 
-            root.Children.Add(title);
+            root.Children.Add(header);
             root.Children.Add(separator);
+            _lastDisplayedMatchDurationSecond = -1;
 
             AddCategoryHeader(root, 2, "GLOBAL STATS");
             AddStatRow(root, 3, "Highest turn", out _highestTurnValue);
@@ -2521,9 +2896,6 @@ namespace FinalStatsPlugin
             if (e.ChangedButton != MouseButton.Left)
                 return;
 
-            if (_showingFinalSummary)
-                return;
-
             _pluginVisible = !_pluginVisible;
 
             if (_toggleButton != null)
@@ -2531,6 +2903,7 @@ namespace FinalStatsPlugin
 
             UpdateOverlayVisibility();
             PositionOverlay();
+            UpdateFinalBoardSummaryOverlay();
             e.Handled = true;
         }
 
@@ -2673,6 +3046,7 @@ namespace FinalStatsPlugin
             if (_panel == null)
                 return;
 
+            UpdateMatchDurationValue();
             SetValue(_goldSpentValue, _goldSpent.ToString(CultureInfo.InvariantCulture));
             SetValue(_cardsBoughtValue, _cardsBought.ToString(CultureInfo.InvariantCulture));
             SetValue(_minionsBoughtValue, _minionsBought.ToString(CultureInfo.InvariantCulture));
@@ -2750,6 +3124,55 @@ namespace FinalStatsPlugin
             );
         }
 
+        private void UpdateMatchDurationValue()
+        {
+            if (_matchDurationValue == null)
+                return;
+
+            TimeSpan duration = _trackingMatch
+                ? _matchStopwatch.Elapsed
+                : _finalMatchDuration;
+            long elapsedSecond = (long)duration.TotalSeconds;
+
+            // OnUpdate runs roughly every 100 ms. Avoid rewriting the WPF
+            // text unless the displayed second has actually changed.
+            if (elapsedSecond == _lastDisplayedMatchDurationSecond)
+                return;
+
+            _lastDisplayedMatchDurationSecond = elapsedSecond;
+            _matchDurationValue.Text = FormatMatchDuration(duration);
+        }
+
+        private static string FormatMatchDuration(TimeSpan duration)
+        {
+            long totalHours = (long)duration.TotalHours;
+
+            if (totalHours > 0)
+            {
+                return totalHours.ToString(CultureInfo.InvariantCulture)
+                    + ":"
+                    + duration.Minutes.ToString(
+                        "00",
+                        CultureInfo.InvariantCulture
+                    )
+                    + ":"
+                    + duration.Seconds.ToString(
+                        "00",
+                        CultureInfo.InvariantCulture
+                    );
+            }
+
+            return ((int)duration.TotalMinutes).ToString(
+                "00",
+                CultureInfo.InvariantCulture
+            )
+                + ":"
+                + duration.Seconds.ToString(
+                    "00",
+                    CultureInfo.InvariantCulture
+                );
+        }
+
         private static string FormatPositiveStats(
             int attack,
             int health)
@@ -2766,13 +3189,16 @@ namespace FinalStatsPlugin
                 return;
 
             bool hasData = _hasMatchData;
-            bool showFinalSummary =
-                hasData && _showingFinalSummary;
+            bool interfaceAllowed =
+                !_showingFinalSummary
+                || _finalSummaryAllowedInCurrentMode;
             bool showToggleButton =
-                hasData && !showFinalSummary;
+                hasData && interfaceAllowed;
 
             _panel.Visibility =
-                hasData && (showFinalSummary || _pluginVisible)
+                hasData
+                && interfaceAllowed
+                && _pluginVisible
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
@@ -2781,8 +3207,8 @@ namespace FinalStatsPlugin
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            // Remove the hidden button from HDT's clickable regions while
-            // the final summary is displayed in the menu.
+            // Remove the button from HDT's clickable regions only when the
+            // complete interface is unavailable in the current scene.
             OverlayExtensions.SetIsOverlayHitTestVisible(
                 _toggleButton,
                 showToggleButton
@@ -2790,10 +3216,20 @@ namespace FinalStatsPlugin
 
             if (_toggleButtonText != null)
             {
-                _toggleButtonText.Text =
-                    _pluginVisible
-                        ? "Hide combat stats"
-                        : "Show combat stats";
+                if (_showingFinalSummary)
+                {
+                    _toggleButtonText.Text =
+                        _pluginVisible
+                            ? "Hide final stats"
+                            : "Show final stats";
+                }
+                else
+                {
+                    _toggleButtonText.Text =
+                        _pluginVisible
+                            ? "Hide combat stats"
+                            : "Show combat stats";
+                }
             }
         }
 
@@ -2812,29 +3248,64 @@ namespace FinalStatsPlugin
                 0,
                 canvasHeight - PanelBottom - ToggleButtonHeight
             );
-            double panelTop;
-
-            if (_showingFinalSummary)
-            {
-                // The button is removed in the menu, so the panel itself
-                // uses the requested 50 px bottom margin.
-                panelTop = Math.Max(
-                    0,
-                    canvasHeight - PanelBottom - PanelHeight
-                );
-            }
-            else
-            {
-                panelTop = Math.Max(
-                    0,
-                    buttonTop - ToggleButtonGap - PanelHeight
-                );
-            }
+            double panelTop = Math.Max(
+                0,
+                buttonTop - ToggleButtonGap - PanelHeight
+            );
 
             Canvas.SetLeft(_panel, left);
             Canvas.SetTop(_panel, panelTop);
             Canvas.SetLeft(_toggleButton, left);
             Canvas.SetTop(_toggleButton, buttonTop);
+        }
+
+        private void UpdateFinalBoardSummaryOverlay()
+        {
+            _finalBoardSummaryOverlay.EnsureCreated();
+            bool showFinalBoard =
+                _showingFinalSummary
+                && _finalSummaryAllowedInCurrentMode
+                && _pluginVisible
+                && _hasFinalBoardSnapshot
+                && !_finalBoardRenderFailed;
+
+            if (showFinalBoard && _finalBoardNeedsRefresh)
+            {
+                try
+                {
+                    _finalBoardSummaryOverlay.UpdateSummary(
+                        _finalBoardSnapshot,
+                        new FinalBoardSummaryData
+                        {
+                            HeroName = _finalHeroName,
+                            Placement = _finalPlacement,
+                            MmrDelta = _finalMmrDelta,
+                            Turn = _highestTurn,
+                            HighestCreatureAttack =
+                                _highestCreatureAttack,
+                            HighestCreatureHealth =
+                                _highestCreatureHealth,
+                            Duration = _finalMatchDuration
+                        }
+                    );
+                    _finalBoardNeedsRefresh = false;
+                }
+                catch (Exception ex)
+                {
+                    _finalBoardNeedsRefresh = false;
+                    _finalBoardRenderFailed = true;
+                    _finalBoardSummaryOverlay.SetVisible(false);
+                    WriteDiagnostic(
+                        "FINAL BOARD RENDER ERROR | " + ex
+                    );
+                    return;
+                }
+            }
+
+            _finalBoardSummaryOverlay.SetVisible(
+                showFinalBoard
+            );
+            _finalBoardSummaryOverlay.Position();
         }
 
         private static void SetValue(

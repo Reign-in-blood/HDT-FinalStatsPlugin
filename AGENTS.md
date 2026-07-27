@@ -184,6 +184,7 @@ AGENTS.md
 FinalStatsPlugin.sln
 FinalStatsPlugin.csproj
 FinalStatsPlugin.cs
+FinalBoardSummaryOverlay.cs
 Build.bat
 find_hdt_assembly.ps1
 README.md
@@ -216,6 +217,14 @@ It contains most of the plugin logic, including:
 - diagnostic logging.
 
 Do not assume the source file has already been split into multiple services.
+
+### `FinalBoardSummaryOverlay.cs`
+
+This file contains the separate WPF overlay used to display the last intact
+Battlegrounds minion board after the match.
+
+It reuses HDT's public `BattlegroundsMinion` control and must remain
+non-interactive.
 
 ### `FinalStatsPlugin.csproj`
 
@@ -575,6 +584,31 @@ StatRowHeight: 23
 CategoryHeaderHeight: 20
 ```
 
+Current final-board summary layout:
+
+```text
+Width: 900
+Height: 220
+Left: 305
+Bottom: 100
+Top corner radius: 0
+Bottom corner radius: 36
+```
+
+The final-board header displays:
+
+- hero name;
+- final placement;
+- Battlegrounds MMR change when HDT provides it;
+- highest turn reached;
+- highest combined creature Attack and Health;
+- total match duration.
+
+The MMR result may be populated asynchronously after the match. Keep the
+retained `GameStats` reference for a short bounded lookup period, display an
+unavailable value instead of inventing a delta, and reject implausible stale
+changes.
+
 Current visual direction:
 
 - compact graphite background;
@@ -596,18 +630,23 @@ Current button texts:
 ```text
 Hide combat stats
 Show combat stats
+Hide final stats
+Show final stats
 ```
 
 ### After the match
 
-- the final statistics panel is forced visible;
-- the Show/Hide button is hidden;
-- the button's interactive hit-test area is disabled;
-- final statistics remain visible until the next match.
+- the final statistics panel and final board are forced visible once when
+  arriving in the Battlegrounds menu;
+- the Show/Hide button remains visible and interactive;
+- the player can hide and show the complete final interface;
+- repeated menu events must not undo a manual Hide;
+- leaving `GAMEPLAY`/`BACON` for another Hearthstone mode, including the
+  main `HUB`, hides the complete interface and button.
 
 ### Next match
 
-- the button becomes available again;
+- the button remains available;
 - the normal in-match visibility behavior resumes.
 
 ### WPF and HDT safety rules
@@ -661,6 +700,7 @@ Max damage taken
 Combat wins
 Combat losses
 Combat draws
+Match duration
 ```
 
 ### 11.1 Gold spent

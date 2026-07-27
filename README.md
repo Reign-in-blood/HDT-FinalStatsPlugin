@@ -20,9 +20,15 @@ The plugin currently tracks:
 - Hero damage dealt and received
 - Highest hero damage dealt or received in one combat
 - Combat wins, losses and draws
+- Live match duration, preserved in the final summary
+- Last intact minion board displayed after the match, with the hero, final
+  placement, MMR change when available, turn count, highest creature and
+  total duration
 
 The compact graphite overlay uses crisp, high-contrast typography and can be
-shown or hidden during the game with a dedicated button.
+shown or hidden during and after the game with a dedicated button. The final
+interface is automatically hidden after leaving Battlegrounds for Hearthstone's
+main menu.
 
 ## Installation
 
