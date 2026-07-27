@@ -1,6 +1,7 @@
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Controls;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
+using Hearthstone_Deck_Tracker.Utility.Assets;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -14,15 +15,15 @@ namespace FinalStatsPlugin
 {
     internal sealed class FinalBoardSummaryOverlay
     {
-        private const double PanelWidth = 900;
-        private const double PanelHeight = 220;
-        private const double PanelLeft = 305;
-        private const double PanelBottom = 100;
-        private const double BottomCornerRadius = 36;
-        private const double MinionSize = 120;
+        private const double PanelWidth = 930;
+        private const double PanelHeight = 400;
+        private const double PanelTop = 85;
+        private const double PanelRight = 290;
+        private const double MinionSize = 104;
 
         private Border _panel;
         private StackPanel _board;
+        private CardImage _heroPortrait;
         private TextBlock _heroValue;
         private TextBlock _placementValue;
         private TextBlock _mmrValue;
@@ -64,14 +65,18 @@ namespace FinalStatsPlugin
             root.RowDefinitions.Add(
                 new RowDefinition
                 {
-                    Height = new GridLength(
-                        1,
-                        GridUnitType.Star
-                    )
+                    Height = new GridLength(210)
+                }
+            );
+            root.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = new GridLength(1, GridUnitType.Star)
                 }
             );
 
             Grid header = CreateHeader();
+            FrameworkElement heroDetails = CreateHeroDetails();
             Border separator = new Border
             {
                 Height = 1,
@@ -84,9 +89,11 @@ namespace FinalStatsPlugin
 
             Grid.SetRow(header, 0);
             Grid.SetRow(separator, 1);
-            Grid.SetRow(_board, 2);
+            Grid.SetRow(heroDetails, 2);
+            Grid.SetRow(_board, 3);
             root.Children.Add(header);
             root.Children.Add(separator);
+            root.Children.Add(heroDetails);
             root.Children.Add(_board);
 
             _panel = new Border
@@ -100,12 +107,7 @@ namespace FinalStatsPlugin
                     Color.FromArgb(70, 255, 255, 255)
                 ),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(
-                    0,
-                    0,
-                    BottomCornerRadius,
-                    BottomCornerRadius
-                ),
+                CornerRadius = new CornerRadius(0),
                 Padding = new Thickness(20, 8, 20, 10),
                 Child = root,
                 SnapsToDevicePixels = true,
@@ -125,6 +127,7 @@ namespace FinalStatsPlugin
 
             _panel = null;
             _board = null;
+            _heroPortrait = null;
             _heroValue = null;
             _placementValue = null;
             _mmrValue = null;
@@ -139,6 +142,7 @@ namespace FinalStatsPlugin
         {
             EnsureCreated();
             UpdateHeader(data);
+            UpdateHeroPortrait(data);
             _board.Children.Clear();
 
             if (entities == null || entities.Count == 0)
@@ -180,19 +184,19 @@ namespace FinalStatsPlugin
         {
             Grid header = new Grid
             {
-                Width = 830,
+                Width = 740,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
 
-            AddHeaderColumn(header, 210);
-            AddHeaderColumn(header, 75);
-            AddHeaderColumn(header, 115);
-            AddHeaderColumn(header, 90);
-            AddHeaderColumn(header, 220);
-            AddHeaderColumn(header, 120);
+            AddHeaderColumn(header, 190);
+            AddHeaderColumn(header, 70);
+            AddHeaderColumn(header, 100);
+            AddHeaderColumn(header, 70);
+            AddHeaderColumn(header, 200);
+            AddHeaderColumn(header, 110);
 
             AddHeaderCell(
                 header,
@@ -242,6 +246,60 @@ namespace FinalStatsPlugin
             );
 
             return header;
+        }
+
+        private FrameworkElement CreateHeroDetails()
+        {
+            Grid details = new Grid
+            {
+                Width = 740,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            details.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(160)
+                }
+            );
+            details.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(1, GridUnitType.Star)
+                }
+            );
+
+            _heroPortrait = new CardImage
+            {
+                Width = 140,
+                Height = 196,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            Border portraitContainer = new Border
+            {
+                Width = 156,
+                Height = 204,
+                Background = CreateFrozenBrush(
+                    Color.FromArgb(80, 20, 22, 26)
+                ),
+                BorderBrush = CreateFrozenBrush(
+                    Color.FromArgb(55, 255, 255, 255)
+                ),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Child = _heroPortrait,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            Grid.SetColumn(portraitContainer, 0);
+            details.Children.Add(portraitContainer);
+            return details;
         }
 
         private static void AddHeaderColumn(
@@ -452,14 +510,17 @@ namespace FinalStatsPlugin
             if (_panel == null)
                 return;
 
-            double canvasHeight = Core.OverlayCanvas.ActualHeight;
-            double top = System.Math.Max(
+            double canvasWidth = Core.OverlayCanvas.ActualWidth;
+            double left = System.Math.Max(
                 0,
-                canvasHeight - PanelBottom - PanelHeight
+                canvasWidth - PanelRight - PanelWidth
             );
 
-            Canvas.SetLeft(_panel, PanelLeft);
-            Canvas.SetTop(_panel, top);
+            Canvas.SetLeft(_panel, left);
+            Canvas.SetTop(
+                _panel,
+                System.Math.Max(0, PanelTop)
+            );
         }
 
         public void SavePng(string filePath)
@@ -495,9 +556,9 @@ namespace FinalStatsPlugin
                     );
 
                 // Rendering the panel directly also applies its Canvas
-                // position. The content then lands outside a 900 x 220
-                // bitmap and produces a fully transparent PNG. A
-                // VisualBrush renders the panel in local coordinates.
+                // position. The content then lands outside the fixed-size
+                // bitmap and produces a fully transparent PNG. A VisualBrush
+                // renders the panel in local coordinates.
                 DrawingVisual localVisual = new DrawingVisual();
 
                 using (
@@ -553,6 +614,35 @@ namespace FinalStatsPlugin
             }
         }
 
+        private void UpdateHeroPortrait(FinalBoardSummaryData data)
+        {
+            Hearthstone_Deck_Tracker.Hearthstone.Card heroCard =
+                data?.HeroCard;
+            string heroCardId = heroCard?.Id ?? string.Empty;
+
+            if (
+                !string.Equals(
+                    _heroPortrait.CardId,
+                    heroCardId,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                if (heroCard == null)
+                {
+                    _heroPortrait.CardAsset = null;
+                    _heroPortrait.CardId = string.Empty;
+                }
+                else
+                {
+                    _heroPortrait.SetCardIdFromCard(
+                        heroCard,
+                        CardAssetType.Hero
+                    );
+                }
+            }
+        }
+
         private static void EnsureBitmapContainsVisiblePixels(
             BitmapSource bitmap)
         {
@@ -585,6 +675,8 @@ namespace FinalStatsPlugin
     internal sealed class FinalBoardSummaryData
     {
         public string HeroName { get; set; }
+        public Hearthstone_Deck_Tracker.Hearthstone.Card
+            HeroCard { get; set; }
         public int Placement { get; set; }
         public int? MmrDelta { get; set; }
         public int Turn { get; set; }

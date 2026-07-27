@@ -24,6 +24,7 @@ The plugin currently tracks:
 - Last intact minion board displayed after the match, with the hero, final
   placement, MMR change when available, turn count, highest creature and
   total duration
+- Final hero card portrait displayed above the saved board
 - Automatic PNG capture of the final board in
   `Pictures\Hearthstone final board`
 

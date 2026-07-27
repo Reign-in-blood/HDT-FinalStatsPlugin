@@ -1,6 +1,7 @@
 ﻿using HearthDb.Enums;
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Enums.Hearthstone;
+using Hearthstone_Deck_Tracker.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using Hearthstone_Deck_Tracker.Plugins;
 using Hearthstone_Deck_Tracker.Stats;
@@ -33,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 32);
+        public Version Version => new Version(0, 1, 34);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -144,6 +145,7 @@ namespace FinalStatsPlugin
         private bool _finalBoardRenderFailed;
         private GameStats _finalGameStats;
         private string _finalHeroName;
+        private Card _finalHeroCard;
         private int _finalPlacement;
         private int? _finalMmrDelta;
         private bool _finalMmrResolved;
@@ -619,6 +621,7 @@ namespace FinalStatsPlugin
             _finalBoardRenderFailed = false;
             _finalGameStats = null;
             _finalHeroName = null;
+            _finalHeroCard = null;
             _finalPlacement = 0;
             _finalMmrDelta = null;
             _finalMmrResolved = false;
@@ -799,6 +802,7 @@ namespace FinalStatsPlugin
                 bool changed = false;
                 string heroName =
                     hero.Card?.LocalizedName;
+                Card heroCard = hero.Card;
 
                 if (string.IsNullOrWhiteSpace(heroName))
                     heroName = hero.Card?.Name;
@@ -813,6 +817,19 @@ namespace FinalStatsPlugin
                 )
                 {
                     _finalHeroName = heroName;
+                    changed = true;
+                }
+
+                if (
+                    heroCard != null
+                    && !string.Equals(
+                        _finalHeroCard?.Id,
+                        heroCard.Id,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    _finalHeroCard = heroCard;
                     changed = true;
                 }
 
@@ -3298,6 +3315,7 @@ namespace FinalStatsPlugin
                         new FinalBoardSummaryData
                         {
                             HeroName = _finalHeroName,
+                            HeroCard = _finalHeroCard,
                             Placement = _finalPlacement,
                             MmrDelta = _finalMmrDelta,
                             Turn = _highestTurn,

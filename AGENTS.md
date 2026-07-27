@@ -587,12 +587,12 @@ CategoryHeaderHeight: 20
 Current final-board summary layout:
 
 ```text
-Width: 900
-Height: 220
-Left: 305
-Bottom: 100
+Width: 930
+Height: 400
+Top: 85
+Right: 290
 Top corner radius: 0
-Bottom corner radius: 36
+Bottom corner radius: 0
 ```
 
 The final-board header displays:
@@ -603,6 +603,9 @@ The final-board header displays:
 - highest turn reached;
 - highest combined creature Attack and Health;
 - total match duration.
+
+The upper detail area currently displays the final hero card portrait and
+reserves room for later hero-power, Trinket, and seasonal-mechanic additions.
 
 The MMR result may be populated asynchronously after the match. Keep the
 retained `GameStats` reference for a short bounded lookup period, display an
