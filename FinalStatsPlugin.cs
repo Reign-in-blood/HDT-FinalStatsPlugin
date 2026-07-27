@@ -1,5 +1,6 @@
 ﻿using HearthDb.Enums;
 using Hearthstone_Deck_Tracker.API;
+using Hearthstone_Deck_Tracker.Enums.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using Hearthstone_Deck_Tracker.Plugins;
 using Hearthstone_Deck_Tracker.Utility.Extensions;
@@ -31,7 +32,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 28);
+        public Version Version => new Version(0, 1, 29);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -129,6 +130,7 @@ namespace FinalStatsPlugin
         private bool _hasMatchData;
         private bool _gameEndObserved;
         private bool _showingFinalSummary;
+        private bool _finalSummaryAllowedInCurrentMode = true;
         private bool _newGameEventPending;
         private bool? _previousCombatPhase;
         private readonly FinalBoardSummaryOverlay
@@ -256,6 +258,7 @@ namespace FinalStatsPlugin
             GameEvents.OnGameStart.Add(HandleGameStart);
             GameEvents.OnGameEnd.Add(HandleGameEnd);
             GameEvents.OnInMenu.Add(HandleInMenu);
+            GameEvents.OnModeChanged.Add(HandleModeChanged);
             GameEvents.OnEntityWillTakeDamage.Add(
                 HandleEntityWillTakeDamage
             );
@@ -323,10 +326,6 @@ namespace FinalStatsPlugin
 
         public void OnButtonPress()
         {
-            // The final summary must remain visible in the menu.
-            if (_showingFinalSummary)
-                return;
-
             _pluginVisible = !_pluginVisible;
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
@@ -334,6 +333,7 @@ namespace FinalStatsPlugin
                 CreateOverlay();
                 UpdateOverlayVisibility();
                 PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
             });
         }
 
@@ -391,6 +391,7 @@ namespace FinalStatsPlugin
             _newGameEventPending = true;
             _gameEndObserved = false;
             _showingFinalSummary = false;
+            _finalSummaryAllowedInCurrentMode = true;
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
             {
@@ -445,11 +446,18 @@ namespace FinalStatsPlugin
             if (!_hasMatchData)
                 return;
 
-            // In the menu, always show the final result and remove the
-            // in-game toggle button. _pluginVisible is intentionally kept
-            // unchanged so the previous in-game preference returns when
-            // the next match starts.
+            bool firstFinalMenuArrival =
+                !_showingFinalSummary;
             _showingFinalSummary = true;
+            _finalSummaryAllowedInCurrentMode =
+                IsFinalSummaryModeAllowed(
+                    Core.Game.CurrentMode
+                );
+
+            // Show the complete final result once when arriving from the
+            // match. Repeated menu events must not undo a manual Hide.
+            if (firstFinalMenuArrival)
+                _pluginVisible = true;
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
             {
@@ -459,6 +467,45 @@ namespace FinalStatsPlugin
                 PositionOverlay();
                 UpdateFinalBoardSummaryOverlay();
             });
+        }
+
+        private void HandleModeChanged(Mode mode)
+        {
+            if (!_loaded || !_showingFinalSummary)
+                return;
+
+            bool allowed =
+                IsFinalSummaryModeAllowed(mode);
+
+            if (
+                _finalSummaryAllowedInCurrentMode
+                == allowed
+            )
+            {
+                return;
+            }
+
+            _finalSummaryAllowedInCurrentMode = allowed;
+
+            WriteDiagnostic(
+                "FINAL SUMMARY MODE"
+                + " | mode=" + mode
+                + " | allowed=" + allowed
+            );
+
+            Core.OverlayCanvas.Dispatcher.Invoke(() =>
+            {
+                UpdateOverlayVisibility();
+                PositionOverlay();
+                UpdateFinalBoardSummaryOverlay();
+            });
+        }
+
+        private static bool IsFinalSummaryModeAllowed(
+            Mode mode)
+        {
+            return mode == Mode.BACON
+                || mode == Mode.GAMEPLAY;
         }
 
         // ------------------------------------------------------------
@@ -474,6 +521,7 @@ namespace FinalStatsPlugin
             _gameEndObserved = false;
             _newGameEventPending = false;
             _showingFinalSummary = false;
+            _finalSummaryAllowedInCurrentMode = true;
             _previousCombatPhase = null;
 
             WriteDiagnostic("MATCH START");
@@ -2691,9 +2739,6 @@ namespace FinalStatsPlugin
             if (e.ChangedButton != MouseButton.Left)
                 return;
 
-            if (_showingFinalSummary)
-                return;
-
             _pluginVisible = !_pluginVisible;
 
             if (_toggleButton != null)
@@ -2701,6 +2746,7 @@ namespace FinalStatsPlugin
 
             UpdateOverlayVisibility();
             PositionOverlay();
+            UpdateFinalBoardSummaryOverlay();
             e.Handled = true;
         }
 
@@ -2986,13 +3032,16 @@ namespace FinalStatsPlugin
                 return;
 
             bool hasData = _hasMatchData;
-            bool showFinalSummary =
-                hasData && _showingFinalSummary;
+            bool interfaceAllowed =
+                !_showingFinalSummary
+                || _finalSummaryAllowedInCurrentMode;
             bool showToggleButton =
-                hasData && !showFinalSummary;
+                hasData && interfaceAllowed;
 
             _panel.Visibility =
-                hasData && (showFinalSummary || _pluginVisible)
+                hasData
+                && interfaceAllowed
+                && _pluginVisible
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
@@ -3001,8 +3050,8 @@ namespace FinalStatsPlugin
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            // Remove the hidden button from HDT's clickable regions while
-            // the final summary is displayed in the menu.
+            // Remove the button from HDT's clickable regions only when the
+            // complete interface is unavailable in the current scene.
             OverlayExtensions.SetIsOverlayHitTestVisible(
                 _toggleButton,
                 showToggleButton
@@ -3010,10 +3059,20 @@ namespace FinalStatsPlugin
 
             if (_toggleButtonText != null)
             {
-                _toggleButtonText.Text =
-                    _pluginVisible
-                        ? "Hide combat stats"
-                        : "Show combat stats";
+                if (_showingFinalSummary)
+                {
+                    _toggleButtonText.Text =
+                        _pluginVisible
+                            ? "Hide final stats"
+                            : "Show final stats";
+                }
+                else
+                {
+                    _toggleButtonText.Text =
+                        _pluginVisible
+                            ? "Hide combat stats"
+                            : "Show combat stats";
+                }
             }
         }
 
@@ -3032,24 +3091,10 @@ namespace FinalStatsPlugin
                 0,
                 canvasHeight - PanelBottom - ToggleButtonHeight
             );
-            double panelTop;
-
-            if (_showingFinalSummary)
-            {
-                // The button is removed in the menu, so the panel itself
-                // uses the requested 50 px bottom margin.
-                panelTop = Math.Max(
-                    0,
-                    canvasHeight - PanelBottom - PanelHeight
-                );
-            }
-            else
-            {
-                panelTop = Math.Max(
-                    0,
-                    buttonTop - ToggleButtonGap - PanelHeight
-                );
-            }
+            double panelTop = Math.Max(
+                0,
+                buttonTop - ToggleButtonGap - PanelHeight
+            );
 
             Canvas.SetLeft(_panel, left);
             Canvas.SetTop(_panel, panelTop);
@@ -3062,6 +3107,8 @@ namespace FinalStatsPlugin
             _finalBoardSummaryOverlay.EnsureCreated();
             bool showFinalBoard =
                 _showingFinalSummary
+                && _finalSummaryAllowedInCurrentMode
+                && _pluginVisible
                 && _hasFinalBoardSnapshot
                 && !_finalBoardRenderFailed;
 

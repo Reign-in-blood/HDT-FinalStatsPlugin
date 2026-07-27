@@ -24,7 +24,9 @@ The plugin currently tracks:
 - Last intact minion board displayed after the match
 
 The compact graphite overlay uses crisp, high-contrast typography and can be
-shown or hidden during the game with a dedicated button.
+shown or hidden during and after the game with a dedicated button. The final
+interface is automatically hidden after leaving Battlegrounds for Hearthstone's
+main menu.
 
 ## Installation
 

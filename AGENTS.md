@@ -616,18 +616,23 @@ Current button texts:
 ```text
 Hide combat stats
 Show combat stats
+Hide final stats
+Show final stats
 ```
 
 ### After the match
 
-- the final statistics panel is forced visible;
-- the Show/Hide button is hidden;
-- the button's interactive hit-test area is disabled;
-- final statistics remain visible until the next match.
+- the final statistics panel and final board are forced visible once when
+  arriving in the Battlegrounds menu;
+- the Show/Hide button remains visible and interactive;
+- the player can hide and show the complete final interface;
+- repeated menu events must not undo a manual Hide;
+- leaving `GAMEPLAY`/`BACON` for another Hearthstone mode, including the
+  main `HUB`, hides the complete interface and button.
 
 ### Next match
 
-- the button becomes available again;
+- the button remains available;
 - the normal in-match visibility behavior resumes.
 
 ### WPF and HDT safety rules
