@@ -4,9 +4,11 @@ using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace FinalStatsPlugin
 {
@@ -458,6 +460,118 @@ namespace FinalStatsPlugin
 
             Canvas.SetLeft(_panel, PanelLeft);
             Canvas.SetTop(_panel, top);
+        }
+
+        public void SavePng(string filePath)
+        {
+            EnsureCreated();
+
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                throw new ArgumentException(
+                    "A screenshot path is required.",
+                    nameof(filePath)
+                );
+            }
+
+            string temporaryPath =
+                filePath
+                + ".tmp-"
+                + Guid.NewGuid().ToString("N");
+            Visibility previousVisibility = _panel.Visibility;
+
+            try
+            {
+                _panel.Visibility = Visibility.Visible;
+                _panel.UpdateLayout();
+
+                RenderTargetBitmap bitmap =
+                    new RenderTargetBitmap(
+                        (int)PanelWidth,
+                        (int)PanelHeight,
+                        96,
+                        96,
+                        PixelFormats.Pbgra32
+                    );
+
+                // Rendering the panel directly also applies its Canvas
+                // position. The content then lands outside a 900 x 220
+                // bitmap and produces a fully transparent PNG. A
+                // VisualBrush renders the panel in local coordinates.
+                DrawingVisual localVisual = new DrawingVisual();
+
+                using (
+                    DrawingContext drawingContext =
+                        localVisual.RenderOpen()
+                )
+                {
+                    drawingContext.DrawRectangle(
+                        new VisualBrush(_panel)
+                        {
+                            Stretch = Stretch.Fill
+                        },
+                        null,
+                        new Rect(
+                            0,
+                            0,
+                            PanelWidth,
+                            PanelHeight
+                        )
+                    );
+                }
+
+                bitmap.Render(localVisual);
+                EnsureBitmapContainsVisiblePixels(bitmap);
+
+                PngBitmapEncoder encoder =
+                    new PngBitmapEncoder();
+                encoder.Frames.Add(
+                    BitmapFrame.Create(bitmap)
+                );
+
+                using (
+                    FileStream stream = new FileStream(
+                        temporaryPath,
+                        FileMode.CreateNew,
+                        FileAccess.Write,
+                        FileShare.None
+                    )
+                )
+                {
+                    encoder.Save(stream);
+                    stream.Flush();
+                }
+
+                File.Move(temporaryPath, filePath);
+            }
+            finally
+            {
+                _panel.Visibility = previousVisibility;
+
+                if (File.Exists(temporaryPath))
+                    File.Delete(temporaryPath);
+            }
+        }
+
+        private static void EnsureBitmapContainsVisiblePixels(
+            BitmapSource bitmap)
+        {
+            int stride =
+                bitmap.PixelWidth
+                * (bitmap.Format.BitsPerPixel / 8);
+            byte[] pixels =
+                new byte[stride * bitmap.PixelHeight];
+            bitmap.CopyPixels(pixels, stride, 0);
+
+            for (int index = 3; index < pixels.Length; index += 4)
+            {
+                if (pixels[index] != 0)
+                    return;
+            }
+
+            throw new InvalidOperationException(
+                "The rendered final-board screenshot is fully transparent."
+            );
         }
 
         private static Brush CreateFrozenBrush(Color color)

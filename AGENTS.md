@@ -609,6 +609,19 @@ retained `GameStats` reference for a short bounded lookup period, display an
 unavailable value instead of inventing a delta, and reject implausible stale
 changes.
 
+The test screenshot behavior automatically saves the rendered final-board
+panel as a PNG in the Windows `MyPictures` special folder:
+
+```text
+Hearthstone final board\FinalBoard_YYYY-MM-DD_HH-mm-ss_3rd.png
+```
+
+Use `Environment.SpecialFolder.MyPictures`; never hard-code a username or a
+localized `Pictures` path. `FinalBoardScreenshotMaximumPlacement` is currently
+`8` for testing every placement. Change only that limit to `3` after validation
+to retain Top 1 through Top 3. Screenshot failures must be logged and must not
+affect the live overlay.
+
 Current visual direction:
 
 - compact graphite background;
