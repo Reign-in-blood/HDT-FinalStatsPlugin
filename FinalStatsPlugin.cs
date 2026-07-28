@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 36);
+        public Version Version => new Version(0, 1, 38);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -147,6 +147,8 @@ namespace FinalStatsPlugin
         private string _finalHeroName;
         private Card _finalHeroCard;
         private Entity _finalHeroPowerSnapshot;
+        private readonly List<Entity> _finalTrinketSnapshots =
+            new List<Entity>();
         private int _finalPlacement;
         private int? _finalMmrDelta;
         private bool _finalMmrResolved;
@@ -638,6 +640,7 @@ namespace FinalStatsPlugin
             _finalHeroName = null;
             _finalHeroCard = null;
             _finalHeroPowerSnapshot = null;
+            _finalTrinketSnapshots.Clear();
             _finalPlacement = 0;
             _finalMmrDelta = null;
             _finalMmrResolved = false;
@@ -886,6 +889,36 @@ namespace FinalStatsPlugin
                     }
                 }
 
+                List<Entity> trinkets =
+                    GetCurrentPlayerTrinkets();
+
+                if (
+                    trinkets.Count > 0
+                    && !HaveSameTrinkets(
+                        _finalTrinketSnapshots,
+                        trinkets
+                    )
+                )
+                {
+                    _finalTrinketSnapshots.Clear();
+                    _finalTrinketSnapshots.AddRange(
+                        trinkets.Select(
+                            trinket => trinket.Clone()
+                        )
+                    );
+                    changed = true;
+
+                    WriteDiagnostic(
+                        "FINAL TRINKETS"
+                        + " | count=" + trinkets.Count
+                        + " | cards="
+                        + string.Join(
+                            ",",
+                            trinkets.Select(GetBestCardId)
+                        )
+                    );
+                }
+
                 int placement = hero.GetTag(
                     GameTag.PLAYER_LEADERBOARD_PLACE
                 );
@@ -945,6 +978,58 @@ namespace FinalStatsPlugin
                 .OrderByDescending(entity => entity.IsInPlay)
                 .ThenByDescending(entity => entity.Id)
                 .FirstOrDefault();
+        }
+
+        private static List<Entity>
+            GetCurrentPlayerTrinkets()
+        {
+            return Core.Game.Player.Trinkets
+                .Where(
+                    entity =>
+                        entity != null
+                        && entity.GetTag(
+                            GameTag.TAG_SCRIPT_DATA_NUM_6
+                        ) != 3
+                        && !string.IsNullOrWhiteSpace(
+                            GetBestCardId(entity)
+                        )
+                )
+                .OrderBy(
+                    entity =>
+                    {
+                        int slot = entity.GetTag(
+                            GameTag.TAG_SCRIPT_DATA_NUM_6
+                        );
+                        return slot > 0 ? slot : int.MaxValue;
+                    }
+                )
+                .ThenBy(entity => entity.Id)
+                .Take(2)
+                .ToList();
+        }
+
+        private static bool HaveSameTrinkets(
+            IReadOnlyList<Entity> first,
+            IReadOnlyList<Entity> second)
+        {
+            if (first.Count != second.Count)
+                return false;
+
+            for (int index = 0; index < first.Count; index++)
+            {
+                if (
+                    !string.Equals(
+                        GetBestCardId(first[index]),
+                        GetBestCardId(second[index]),
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void TryRefreshFinalMmrDelta()
@@ -3408,6 +3493,8 @@ namespace FinalStatsPlugin
                             HeroCard = _finalHeroCard,
                             HeroPowerEntity =
                                 _finalHeroPowerSnapshot,
+                            TrinketEntities =
+                                _finalTrinketSnapshots,
                             Placement = _finalPlacement,
                             MmrDelta = _finalMmrDelta,
                             Turn = _highestTurn,

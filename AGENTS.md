@@ -590,7 +590,7 @@ Current final-board summary layout:
 Width: 930
 Height: 400
 Top: 85
-Right: 290
+Left: 290
 Top corner radius: 0
 Bottom corner radius: 0
 ```
@@ -634,8 +634,9 @@ affect the live overlay.
 Start the automatic screenshot delay when the final panel is first created in
 the menu, not merely when the combat ends. HDT card assets load
 asynchronously. Do not save the PNG until both the hero portrait and native
-Hero Power portrait report a loaded image asset. Use a bounded timeout and
-skip the screenshot rather than distributing a placeholder image.
+Hero Power portrait report a loaded image asset. When final-board trinkets are
+present, wait for their native HDT portrait assets as well. Use a bounded
+timeout and skip the screenshot rather than distributing a placeholder image.
 
 Current visual direction:
 

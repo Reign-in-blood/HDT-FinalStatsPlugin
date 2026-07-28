@@ -18,7 +18,7 @@ namespace FinalStatsPlugin
         private const double PanelWidth = 930;
         private const double PanelHeight = 400;
         private const double PanelTop = 85;
-        private const double PanelRight = 290;
+        private const double PanelLeft = 290;
         private const double MinionSize = 104;
 
         private Border _panel;
@@ -28,6 +28,9 @@ namespace FinalStatsPlugin
         private HeroPower _heroPower;
         private int _heroPowerEntityId;
         private string _heroPowerCardId;
+        private StackPanel _trinketPanel;
+        private readonly List<Trinket> _trinkets =
+            new List<Trinket>();
         private TextBlock _heroValue;
         private TextBlock _placementValue;
         private TextBlock _mmrValue;
@@ -136,6 +139,8 @@ namespace FinalStatsPlugin
             _heroPower = null;
             _heroPowerEntityId = 0;
             _heroPowerCardId = null;
+            _trinketPanel = null;
+            _trinkets.Clear();
             _heroValue = null;
             _placementValue = null;
             _mmrValue = null;
@@ -152,6 +157,7 @@ namespace FinalStatsPlugin
             UpdateHeader(data);
             UpdateHeroPortrait(data);
             UpdateHeroPower(data);
+            UpdateTrinkets(data);
             _board.Children.Clear();
 
             if (entities == null || entities.Count == 0)
@@ -334,6 +340,43 @@ namespace FinalStatsPlugin
 
             Grid.SetColumn(_heroPowerContainer, 1);
             details.Children.Add(_heroPowerContainer);
+
+            StackPanel trinketSection = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            trinketSection.Children.Add(
+                new TextBlock
+                {
+                    Text = "TRINKETS",
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize = 9.5,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = CreateFrozenBrush(
+                        Color.FromRgb(154, 161, 169)
+                    ),
+                    HorizontalAlignment =
+                        HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    IsHitTestVisible = false
+                }
+            );
+
+            _trinketPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            trinketSection.Children.Add(_trinketPanel);
+
+            Grid.SetColumn(trinketSection, 2);
+            details.Children.Add(trinketSection);
             return details;
         }
 
@@ -545,13 +588,10 @@ namespace FinalStatsPlugin
             if (_panel == null)
                 return;
 
-            double canvasWidth = Core.OverlayCanvas.ActualWidth;
-            double left = System.Math.Max(
-                0,
-                canvasWidth - PanelRight - PanelWidth
+            Canvas.SetLeft(
+                _panel,
+                System.Math.Max(0, PanelLeft)
             );
-
-            Canvas.SetLeft(_panel, left);
             Canvas.SetTop(
                 _panel,
                 System.Math.Max(0, PanelTop)
@@ -669,7 +709,26 @@ namespace FinalStatsPlugin
                 || heroPowerViewModel?.CardPortrait?.Asset
                     != null;
 
-            return heroPortraitReady && heroPowerReady;
+            bool trinketsReady = true;
+
+            foreach (Trinket trinket in _trinkets)
+            {
+                TrinketViewModel trinketViewModel =
+                    trinket.DataContext as TrinketViewModel;
+
+                if (
+                    trinketViewModel?.CardPortrait?.Asset
+                        == null
+                )
+                {
+                    trinketsReady = false;
+                    break;
+                }
+            }
+
+            return heroPortraitReady
+                && heroPowerReady
+                && trinketsReady;
         }
 
         private void UpdateHeroPortrait(FinalBoardSummaryData data)
@@ -744,6 +803,36 @@ namespace FinalStatsPlugin
             _heroPowerContainer.Child = _heroPower;
         }
 
+        private void UpdateTrinkets(
+            FinalBoardSummaryData data)
+        {
+            _trinketPanel.Children.Clear();
+            _trinkets.Clear();
+
+            IReadOnlyList<Entity> trinketEntities =
+                data?.TrinketEntities;
+
+            if (trinketEntities == null)
+                return;
+
+            foreach (Entity trinketEntity in trinketEntities)
+            {
+                if (trinketEntity == null)
+                    continue;
+
+                Trinket trinket = new Trinket(trinketEntity)
+                {
+                    Width = 110,
+                    Height = 110,
+                    Margin = new Thickness(5, 0, 5, 0),
+                    IsHitTestVisible = false
+                };
+
+                _trinkets.Add(trinket);
+                _trinketPanel.Children.Add(trinket);
+            }
+        }
+
         private static void EnsureBitmapContainsVisiblePixels(
             BitmapSource bitmap)
         {
@@ -779,6 +868,8 @@ namespace FinalStatsPlugin
         public Hearthstone_Deck_Tracker.Hearthstone.Card
             HeroCard { get; set; }
         public Entity HeroPowerEntity { get; set; }
+        public IReadOnlyList<Entity> TrinketEntities
+            { get; set; }
         public int Placement { get; set; }
         public int? MmrDelta { get; set; }
         public int Turn { get; set; }
