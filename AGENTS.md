@@ -631,6 +631,12 @@ localized `Pictures` path. `FinalBoardScreenshotMaximumPlacement` is currently
 to retain Top 1 through Top 3. Screenshot failures must be logged and must not
 affect the live overlay.
 
+Start the automatic screenshot delay when the final panel is first created in
+the menu, not merely when the combat ends. HDT card assets load
+asynchronously. Do not save the PNG until both the hero portrait and native
+Hero Power portrait report a loaded image asset. Use a bounded timeout and
+skip the screenshot rather than distributing a placeholder image.
+
 Current visual direction:
 
 - compact graphite background;

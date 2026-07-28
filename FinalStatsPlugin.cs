@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 35);
+        public Version Version => new Version(0, 1, 36);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -155,10 +155,14 @@ namespace FinalStatsPlugin
         private const int FinalBoardScreenshotMaximumPlacement = 8;
         private const int FinalBoardScreenshotMaximumAttempts = 3;
         private static readonly TimeSpan FinalBoardScreenshotDelay =
-            TimeSpan.FromSeconds(5);
+            TimeSpan.FromSeconds(8);
+        private static readonly TimeSpan
+            FinalBoardScreenshotAssetTimeout =
+                TimeSpan.FromSeconds(30);
         private bool _finalBoardScreenshotCompleted;
         private int _finalBoardScreenshotAttempts;
         private DateTime _finalBoardScreenshotNextAttemptUtc;
+        private DateTime _finalBoardScreenshotAssetDeadlineUtc;
         private DateTime _finalBoardScreenshotTimestamp;
         private readonly Stopwatch _matchStopwatch = new Stopwatch();
         private TimeSpan _finalMatchDuration = TimeSpan.Zero;
@@ -482,7 +486,17 @@ namespace FinalStatsPlugin
             // Show the complete final result once when arriving from the
             // match. Repeated menu events must not undo a manual Hide.
             if (firstFinalMenuArrival)
+            {
                 _pluginVisible = true;
+                _finalBoardScreenshotNextAttemptUtc =
+                    DateTime.UtcNow.Add(
+                        FinalBoardScreenshotDelay
+                    );
+                _finalBoardScreenshotAssetDeadlineUtc =
+                    DateTime.UtcNow.Add(
+                        FinalBoardScreenshotAssetTimeout
+                    );
+            }
 
             Core.OverlayCanvas.Dispatcher.Invoke(() =>
             {
@@ -631,6 +645,8 @@ namespace FinalStatsPlugin
             _finalBoardScreenshotCompleted = false;
             _finalBoardScreenshotAttempts = 0;
             _finalBoardScreenshotNextAttemptUtc =
+                DateTime.MinValue;
+            _finalBoardScreenshotAssetDeadlineUtc =
                 DateTime.MinValue;
             _finalBoardScreenshotTimestamp =
                 DateTime.MinValue;
@@ -3460,6 +3476,31 @@ namespace FinalStatsPlugin
                     + " | maximum="
                     + FinalBoardScreenshotMaximumPlacement
                 );
+                return;
+            }
+
+            if (
+                !_finalBoardSummaryOverlay
+                    .AreScreenshotAssetsReady()
+            )
+            {
+                if (
+                    _finalBoardScreenshotAssetDeadlineUtc
+                        != DateTime.MinValue
+                    && DateTime.UtcNow
+                        >= _finalBoardScreenshotAssetDeadlineUtc
+                )
+                {
+                    _finalBoardScreenshotCompleted = true;
+                    WriteDiagnostic(
+                        "FINAL BOARD SCREENSHOT FAILED"
+                        + " | reason=asset loading timeout"
+                    );
+                    return;
+                }
+
+                _finalBoardScreenshotNextAttemptUtc =
+                    DateTime.UtcNow.AddSeconds(2);
                 return;
             }
 

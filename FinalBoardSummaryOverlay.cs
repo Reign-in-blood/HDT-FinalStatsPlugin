@@ -649,6 +649,29 @@ namespace FinalStatsPlugin
             }
         }
 
+        public bool AreScreenshotAssetsReady()
+        {
+            bool heroPortraitExpected =
+                _heroPortrait != null
+                && !string.IsNullOrWhiteSpace(
+                    _heroPortrait.CardId
+                );
+            bool heroPortraitReady =
+                !heroPortraitExpected
+                || _heroPortrait.CardAsset != null;
+
+            bool heroPowerExpected = _heroPower != null;
+            HeroPowerViewModel heroPowerViewModel =
+                _heroPower?.DataContext
+                    as HeroPowerViewModel;
+            bool heroPowerReady =
+                !heroPowerExpected
+                || heroPowerViewModel?.CardPortrait?.Asset
+                    != null;
+
+            return heroPortraitReady && heroPowerReady;
+        }
+
         private void UpdateHeroPortrait(FinalBoardSummaryData data)
         {
             Hearthstone_Deck_Tracker.Hearthstone.Card heroCard =
