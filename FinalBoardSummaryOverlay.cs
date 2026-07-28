@@ -24,6 +24,10 @@ namespace FinalStatsPlugin
         private Border _panel;
         private StackPanel _board;
         private CardImage _heroPortrait;
+        private Border _heroPowerContainer;
+        private HeroPower _heroPower;
+        private int _heroPowerEntityId;
+        private string _heroPowerCardId;
         private TextBlock _heroValue;
         private TextBlock _placementValue;
         private TextBlock _mmrValue;
@@ -128,6 +132,10 @@ namespace FinalStatsPlugin
             _panel = null;
             _board = null;
             _heroPortrait = null;
+            _heroPowerContainer = null;
+            _heroPower = null;
+            _heroPowerEntityId = 0;
+            _heroPowerCardId = null;
             _heroValue = null;
             _placementValue = null;
             _mmrValue = null;
@@ -143,6 +151,7 @@ namespace FinalStatsPlugin
             EnsureCreated();
             UpdateHeader(data);
             UpdateHeroPortrait(data);
+            UpdateHeroPower(data);
             _board.Children.Clear();
 
             if (entities == null || entities.Count == 0)
@@ -266,6 +275,12 @@ namespace FinalStatsPlugin
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
+                    Width = new GridLength(160)
+                }
+            );
+            details.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
                     Width = new GridLength(1, GridUnitType.Star)
                 }
             );
@@ -299,6 +314,26 @@ namespace FinalStatsPlugin
 
             Grid.SetColumn(portraitContainer, 0);
             details.Children.Add(portraitContainer);
+
+            _heroPowerContainer = new Border
+            {
+                Width = 150,
+                Height = 150,
+                Background = CreateFrozenBrush(
+                    Color.FromArgb(80, 20, 22, 26)
+                ),
+                BorderBrush = CreateFrozenBrush(
+                    Color.FromArgb(55, 255, 255, 255)
+                ),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(75),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            Grid.SetColumn(_heroPowerContainer, 1);
+            details.Children.Add(_heroPowerContainer);
             return details;
         }
 
@@ -643,6 +678,49 @@ namespace FinalStatsPlugin
             }
         }
 
+        private void UpdateHeroPower(FinalBoardSummaryData data)
+        {
+            Entity heroPowerEntity = data?.HeroPowerEntity;
+            int entityId = heroPowerEntity?.Id ?? 0;
+            string cardId =
+                heroPowerEntity?.Info?.LatestCardId;
+
+            if (string.IsNullOrWhiteSpace(cardId))
+                cardId = heroPowerEntity?.CardId;
+
+            cardId = cardId ?? string.Empty;
+
+            if (
+                entityId == _heroPowerEntityId
+                && string.Equals(
+                    cardId,
+                    _heroPowerCardId,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                return;
+            }
+
+            _heroPowerEntityId = entityId;
+            _heroPowerCardId = cardId;
+            _heroPowerContainer.Child = null;
+            _heroPower = null;
+
+            if (heroPowerEntity == null)
+                return;
+
+            _heroPower = new HeroPower(heroPowerEntity)
+            {
+                Width = 140,
+                Height = 140,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            _heroPowerContainer.Child = _heroPower;
+        }
+
         private static void EnsureBitmapContainsVisiblePixels(
             BitmapSource bitmap)
         {
@@ -677,6 +755,7 @@ namespace FinalStatsPlugin
         public string HeroName { get; set; }
         public Hearthstone_Deck_Tracker.Hearthstone.Card
             HeroCard { get; set; }
+        public Entity HeroPowerEntity { get; set; }
         public int Placement { get; set; }
         public int? MmrDelta { get; set; }
         public int Turn { get; set; }

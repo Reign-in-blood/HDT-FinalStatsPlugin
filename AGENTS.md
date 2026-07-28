@@ -604,8 +604,14 @@ The final-board header displays:
 - highest combined creature Attack and Health;
 - total match duration.
 
-The upper detail area currently displays the final hero card portrait and
-reserves room for later hero-power, Trinket, and seasonal-mechanic additions.
+The upper detail area currently displays the final hero card portrait and the
+player's final Hero Power through HDT's native controls. It reserves room for
+later Trinket and seasonal-mechanic additions.
+
+Capture the main Hero Power through the player's `HERO_POWER_ENTITY` tag when
+available. Use only a controlled, active Hero Power fallback when that exact
+reference is unavailable, and preserve a cloned entity before HDT clears the
+match state.
 
 The MMR result may be populated asynchronously after the match. Keep the
 retained `GameStats` reference for a short bounded lookup period, display an
