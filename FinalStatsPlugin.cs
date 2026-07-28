@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 34);
+        public Version Version => new Version(0, 1, 35);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -146,6 +146,7 @@ namespace FinalStatsPlugin
         private GameStats _finalGameStats;
         private string _finalHeroName;
         private Card _finalHeroCard;
+        private Entity _finalHeroPowerSnapshot;
         private int _finalPlacement;
         private int? _finalMmrDelta;
         private bool _finalMmrResolved;
@@ -622,6 +623,7 @@ namespace FinalStatsPlugin
             _finalGameStats = null;
             _finalHeroName = null;
             _finalHeroCard = null;
+            _finalHeroPowerSnapshot = null;
             _finalPlacement = 0;
             _finalMmrDelta = null;
             _finalMmrResolved = false;
@@ -833,6 +835,41 @@ namespace FinalStatsPlugin
                     changed = true;
                 }
 
+                Entity heroPower =
+                    FindCurrentPlayerHeroPower(playerId);
+
+                if (heroPower != null)
+                {
+                    string heroPowerCardId =
+                        GetBestCardId(heroPower);
+                    string previousHeroPowerCardId =
+                        GetBestCardId(
+                            _finalHeroPowerSnapshot
+                        );
+
+                    if (
+                        _finalHeroPowerSnapshot == null
+                        || heroPower.Id
+                            != _finalHeroPowerSnapshot.Id
+                        || !string.Equals(
+                            heroPowerCardId,
+                            previousHeroPowerCardId,
+                            StringComparison.Ordinal
+                        )
+                    )
+                    {
+                        _finalHeroPowerSnapshot =
+                            heroPower.Clone();
+                        changed = true;
+
+                        WriteDiagnostic(
+                            "FINAL HERO POWER"
+                            + " | entity=" + heroPower.Id
+                            + " | card=" + heroPowerCardId
+                        );
+                    }
+                }
+
                 int placement = hero.GetTag(
                     GameTag.PLAYER_LEADERBOARD_PLACE
                 );
@@ -855,6 +892,43 @@ namespace FinalStatsPlugin
                     "FINAL HEADER CAPTURE ERROR | " + ex
                 );
             }
+        }
+
+        private static Entity FindCurrentPlayerHeroPower(
+            int playerId)
+        {
+            Entity playerEntity = Core.Game.PlayerEntity;
+            int referencedHeroPowerId =
+                playerEntity?.GetTag(
+                    GameTag.HERO_POWER_ENTITY
+                ) ?? 0;
+
+            if (
+                referencedHeroPowerId > 0
+                && Core.Game.Entities.TryGetValue(
+                    referencedHeroPowerId,
+                    out Entity referencedHeroPower
+                )
+                && referencedHeroPower != null
+                && referencedHeroPower.IsControlledBy(playerId)
+            )
+            {
+                return referencedHeroPower;
+            }
+
+            return Core.Game.Entities.Values
+                .Where(
+                    entity =>
+                        entity != null
+                        && entity.IsHeroPower
+                        && entity.IsControlledBy(playerId)
+                        && !string.IsNullOrWhiteSpace(
+                            GetBestCardId(entity)
+                        )
+                )
+                .OrderByDescending(entity => entity.IsInPlay)
+                .ThenByDescending(entity => entity.Id)
+                .FirstOrDefault();
         }
 
         private void TryRefreshFinalMmrDelta()
@@ -3316,6 +3390,8 @@ namespace FinalStatsPlugin
                         {
                             HeroName = _finalHeroName,
                             HeroCard = _finalHeroCard,
+                            HeroPowerEntity =
+                                _finalHeroPowerSnapshot,
                             Placement = _finalPlacement,
                             MmrDelta = _finalMmrDelta,
                             Turn = _highestTurn,

@@ -25,6 +25,7 @@ The plugin currently tracks:
   placement, MMR change when available, turn count, highest creature and
   total duration
 - Final hero card portrait displayed above the saved board
+- Final Hero Power displayed with HDT's native Hero Power control
 - Automatic PNG capture of the final board in
   `Pictures\Hearthstone final board`
 
