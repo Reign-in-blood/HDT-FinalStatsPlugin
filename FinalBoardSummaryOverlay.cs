@@ -15,10 +15,10 @@ namespace FinalStatsPlugin
 {
     internal sealed class FinalBoardSummaryOverlay
     {
-        private const double PanelWidth = 930;
+        private const double PanelWidth = 918;
         private const double PanelHeight = 400;
         private const double PanelTop = 85;
-        private const double PanelLeft = 290;
+        private const double PanelLeft = 307;
         private const double MinionSize = 104;
 
         private Border _panel;
@@ -31,6 +31,8 @@ namespace FinalStatsPlugin
         private StackPanel _trinketPanel;
         private readonly List<Trinket> _trinkets =
             new List<Trinket>();
+        private StackPanel _anomalySection;
+        private CardImage _anomalyImage;
         private TextBlock _heroValue;
         private TextBlock _placementValue;
         private TextBlock _mmrValue;
@@ -141,6 +143,8 @@ namespace FinalStatsPlugin
             _heroPowerCardId = null;
             _trinketPanel = null;
             _trinkets.Clear();
+            _anomalySection = null;
+            _anomalyImage = null;
             _heroValue = null;
             _placementValue = null;
             _mmrValue = null;
@@ -158,6 +162,7 @@ namespace FinalStatsPlugin
             UpdateHeroPortrait(data);
             UpdateHeroPower(data);
             UpdateTrinkets(data);
+            UpdateAnomaly(data);
             _board.Children.Clear();
 
             if (entities == null || entities.Count == 0)
@@ -307,10 +312,7 @@ namespace FinalStatsPlugin
                 Background = CreateFrozenBrush(
                     Color.FromArgb(80, 20, 22, 26)
                 ),
-                BorderBrush = CreateFrozenBrush(
-                    Color.FromArgb(55, 255, 255, 255)
-                ),
-                BorderThickness = new Thickness(1),
+                BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(12),
                 Child = _heroPortrait,
                 HorizontalAlignment = HorizontalAlignment.Left,
@@ -328,10 +330,7 @@ namespace FinalStatsPlugin
                 Background = CreateFrozenBrush(
                     Color.FromArgb(80, 20, 22, 26)
                 ),
-                BorderBrush = CreateFrozenBrush(
-                    Color.FromArgb(55, 255, 255, 255)
-                ),
-                BorderThickness = new Thickness(1),
+                BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(75),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -341,11 +340,20 @@ namespace FinalStatsPlugin
             Grid.SetColumn(_heroPowerContainer, 1);
             details.Children.Add(_heroPowerContainer);
 
+            StackPanel seasonalSection = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
             StackPanel trinketSection = new StackPanel
             {
                 Orientation = Orientation.Vertical,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0),
                 IsHitTestVisible = false
             };
 
@@ -374,9 +382,47 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
             trinketSection.Children.Add(_trinketPanel);
+            seasonalSection.Children.Add(trinketSection);
 
-            Grid.SetColumn(trinketSection, 2);
-            details.Children.Add(trinketSection);
+            _anomalySection = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+
+            _anomalySection.Children.Add(
+                new TextBlock
+                {
+                    Text = "ANOMALY",
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize = 9.5,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = CreateFrozenBrush(
+                        Color.FromRgb(154, 161, 169)
+                    ),
+                    HorizontalAlignment =
+                        HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    IsHitTestVisible = false
+                }
+            );
+
+            _anomalyImage = new CardImage
+            {
+                Width = 100,
+                Height = 145,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            _anomalySection.Children.Add(_anomalyImage);
+            seasonalSection.Children.Add(_anomalySection);
+
+            Grid.SetColumn(seasonalSection, 2);
+            details.Children.Add(seasonalSection);
             return details;
         }
 
@@ -726,9 +772,19 @@ namespace FinalStatsPlugin
                 }
             }
 
+            bool anomalyExpected =
+                _anomalyImage != null
+                && !string.IsNullOrWhiteSpace(
+                    _anomalyImage.CardId
+                );
+            bool anomalyReady =
+                !anomalyExpected
+                || _anomalyImage.CardAsset != null;
+
             return heroPortraitReady
                 && heroPowerReady
-                && trinketsReady;
+                && trinketsReady
+                && anomalyReady;
         }
 
         private void UpdateHeroPortrait(FinalBoardSummaryData data)
@@ -833,6 +889,28 @@ namespace FinalStatsPlugin
             }
         }
 
+        private void UpdateAnomaly(
+            FinalBoardSummaryData data)
+        {
+            Hearthstone_Deck_Tracker.Hearthstone.Card
+                anomalyCard = data?.AnomalyCard;
+
+            if (anomalyCard == null)
+            {
+                _anomalySection.Visibility =
+                    Visibility.Collapsed;
+                _anomalyImage.SetCardIdFromCard(null);
+                return;
+            }
+
+            _anomalySection.Visibility =
+                Visibility.Visible;
+            _anomalyImage.SetCardIdFromCard(
+                anomalyCard,
+                CardAssetType.FullImage
+            );
+        }
+
         private static void EnsureBitmapContainsVisiblePixels(
             BitmapSource bitmap)
         {
@@ -870,6 +948,8 @@ namespace FinalStatsPlugin
         public Entity HeroPowerEntity { get; set; }
         public IReadOnlyList<Entity> TrinketEntities
             { get; set; }
+        public Hearthstone_Deck_Tracker.Hearthstone.Card
+            AnomalyCard { get; set; }
         public int Placement { get; set; }
         public int? MmrDelta { get; set; }
         public int Turn { get; set; }

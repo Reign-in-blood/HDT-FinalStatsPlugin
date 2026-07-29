@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 38);
+        public Version Version => new Version(0, 1, 42);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -149,6 +149,7 @@ namespace FinalStatsPlugin
         private Entity _finalHeroPowerSnapshot;
         private readonly List<Entity> _finalTrinketSnapshots =
             new List<Entity>();
+        private Card _finalAnomalyCard;
         private int _finalPlacement;
         private int? _finalMmrDelta;
         private bool _finalMmrResolved;
@@ -641,6 +642,7 @@ namespace FinalStatsPlugin
             _finalHeroCard = null;
             _finalHeroPowerSnapshot = null;
             _finalTrinketSnapshots.Clear();
+            _finalAnomalyCard = null;
             _finalPlacement = 0;
             _finalMmrDelta = null;
             _finalMmrResolved = false;
@@ -806,6 +808,48 @@ namespace FinalStatsPlugin
                         Core.Game.CurrentGameStats;
                 }
 
+                bool changed = false;
+                int anomalyDbfId =
+                    Core.Game.GameEntity?.GetTag(
+                        GameTag.BACON_GLOBAL_ANOMALY_DBID
+                    ) ?? 0;
+
+                if (anomalyDbfId <= 0)
+                {
+                    anomalyDbfId =
+                        _finalGameStats
+                            ?.BattlegroundsDetails
+                            ?.AnomalyDbfId
+                        ?? 0;
+                }
+
+                Card anomalyCard =
+                    anomalyDbfId > 0
+                        ? Database.GetCardFromDbfId(
+                            anomalyDbfId,
+                            false
+                        )
+                        : null;
+
+                if (
+                    anomalyCard != null
+                    && !string.Equals(
+                        _finalAnomalyCard?.Id,
+                        anomalyCard.Id,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    _finalAnomalyCard = anomalyCard;
+                    changed = true;
+
+                    WriteDiagnostic(
+                        "FINAL ANOMALY"
+                        + " | dbfId=" + anomalyDbfId
+                        + " | card=" + anomalyCard.Id
+                    );
+                }
+
                 int playerId = Core.Game.Player.Id;
                 Entity hero = Core.Game.Entities.Values
                     .FirstOrDefault(
@@ -818,9 +862,12 @@ namespace FinalStatsPlugin
                     );
 
                 if (hero == null)
+                {
+                    if (changed)
+                        _finalBoardNeedsRefresh = true;
                     return;
+                }
 
-                bool changed = false;
                 string heroName =
                     hero.Card?.LocalizedName;
                 Card heroCard = hero.Card;
@@ -3495,6 +3542,8 @@ namespace FinalStatsPlugin
                                 _finalHeroPowerSnapshot,
                             TrinketEntities =
                                 _finalTrinketSnapshots,
+                            AnomalyCard =
+                                _finalAnomalyCard,
                             Placement = _finalPlacement,
                             MmrDelta = _finalMmrDelta,
                             Turn = _highestTurn,
