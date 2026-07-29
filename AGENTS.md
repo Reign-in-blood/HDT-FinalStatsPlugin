@@ -587,10 +587,10 @@ CategoryHeaderHeight: 20
 Current final-board summary layout:
 
 ```text
-Width: 930
+Width: 918
 Height: 400
 Top: 85
-Left: 290
+Left: 307
 Top corner radius: 0
 Bottom corner radius: 0
 ```
@@ -604,9 +604,12 @@ The final-board header displays:
 - highest combined creature Attack and Health;
 - total match duration.
 
-The upper detail area currently displays the final hero card portrait and the
-player's final Hero Power through HDT's native controls. It reserves room for
-later Trinket and seasonal-mechanic additions.
+The upper detail area displays the final hero card portrait, the player's final
+Hero Power, up to two final Trinkets, and the Battlegrounds anomaly when one
+exists. Prefer HDT's native controls and card assets for these visuals.
+Capture the anomaly from `BACON_GLOBAL_ANOMALY_DBID`, with the retained
+`GameStats.BattlegroundsDetails.AnomalyDbfId` as a fallback after HDT clears
+live entities.
 
 Capture the main Hero Power through the player's `HERO_POWER_ENTITY` tag when
 available. Use only a controlled, active Hero Power fallback when that exact
@@ -635,8 +638,9 @@ Start the automatic screenshot delay when the final panel is first created in
 the menu, not merely when the combat ends. HDT card assets load
 asynchronously. Do not save the PNG until both the hero portrait and native
 Hero Power portrait report a loaded image asset. When final-board trinkets are
-present, wait for their native HDT portrait assets as well. Use a bounded
-timeout and skip the screenshot rather than distributing a placeholder image.
+present, wait for their native HDT portrait assets as well. When an anomaly is
+present, wait for its full-card asset too. Use a bounded timeout and skip the
+screenshot rather than distributing a placeholder image.
 
 Current visual direction:
 
