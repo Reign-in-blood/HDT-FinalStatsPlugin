@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 42);
+        public Version Version => new Version(0, 1, 43);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -150,6 +150,7 @@ namespace FinalStatsPlugin
         private readonly List<Entity> _finalTrinketSnapshots =
             new List<Entity>();
         private Card _finalAnomalyCard;
+        private Entity _finalAnomalyHeroPowerSnapshot;
         private int _finalPlacement;
         private int? _finalMmrDelta;
         private bool _finalMmrResolved;
@@ -643,6 +644,7 @@ namespace FinalStatsPlugin
             _finalHeroPowerSnapshot = null;
             _finalTrinketSnapshots.Clear();
             _finalAnomalyCard = null;
+            _finalAnomalyHeroPowerSnapshot = null;
             _finalPlacement = 0;
             _finalMmrDelta = null;
             _finalMmrResolved = false;
@@ -936,6 +938,47 @@ namespace FinalStatsPlugin
                     }
                 }
 
+                Entity anomalyHeroPower =
+                    FindCurrentPlayerAnomalyHeroPower(
+                        playerId,
+                        heroPower,
+                        anomalyCard
+                    );
+
+                if (anomalyHeroPower != null)
+                {
+                    string anomalyHeroPowerCardId =
+                        GetBestCardId(anomalyHeroPower);
+                    string previousAnomalyHeroPowerCardId =
+                        GetBestCardId(
+                            _finalAnomalyHeroPowerSnapshot
+                        );
+
+                    if (
+                        _finalAnomalyHeroPowerSnapshot == null
+                        || anomalyHeroPower.Id
+                            != _finalAnomalyHeroPowerSnapshot.Id
+                        || !string.Equals(
+                            anomalyHeroPowerCardId,
+                            previousAnomalyHeroPowerCardId,
+                            StringComparison.Ordinal
+                        )
+                    )
+                    {
+                        _finalAnomalyHeroPowerSnapshot =
+                            anomalyHeroPower.Clone();
+                        changed = true;
+
+                        WriteDiagnostic(
+                            "FINAL ANOMALY HERO POWER"
+                            + " | entity="
+                            + anomalyHeroPower.Id
+                            + " | card="
+                            + anomalyHeroPowerCardId
+                        );
+                    }
+                }
+
                 List<Entity> trinkets =
                     GetCurrentPlayerTrinkets();
 
@@ -1025,6 +1068,104 @@ namespace FinalStatsPlugin
                 .OrderByDescending(entity => entity.IsInPlay)
                 .ThenByDescending(entity => entity.Id)
                 .FirstOrDefault();
+        }
+
+        private static Entity
+            FindCurrentPlayerAnomalyHeroPower(
+                int playerId,
+                Entity mainHeroPower,
+                Card anomalyCard)
+        {
+            if (anomalyCard == null)
+                return null;
+
+            List<Entity> candidates =
+                Core.Game.Entities.Values
+                    .Where(
+                        entity =>
+                            entity != null
+                            && entity.IsHeroPower
+                            && entity.IsControlledBy(playerId)
+                            && !string.IsNullOrWhiteSpace(
+                                GetBestCardId(entity)
+                            )
+                    )
+                    .OrderByDescending(
+                        entity => entity.IsInPlay
+                    )
+                    .ThenByDescending(entity => entity.Id)
+                    .ToList();
+
+            string expectedCardId =
+                anomalyCard.Id + "t";
+            Entity exactCardIdMatch =
+                candidates.FirstOrDefault(
+                    entity =>
+                        string.Equals(
+                            GetBestCardId(entity),
+                            expectedCardId,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                );
+
+            if (exactCardIdMatch != null)
+                return exactCardIdMatch;
+
+            string anomalyText =
+                anomalyCard.Text ?? string.Empty;
+            string anomalyEnglishText =
+                anomalyCard.EnglishText ?? string.Empty;
+
+            Entity describedHeroPower =
+                candidates.FirstOrDefault(
+                    entity =>
+                    {
+                        if (
+                            mainHeroPower != null
+                            && entity.Id == mainHeroPower.Id
+                        )
+                        {
+                            return false;
+                        }
+
+                        string localizedName =
+                            entity.Card?.LocalizedName;
+                        string englishName =
+                            entity.Card?.Name;
+
+                        return ContainsCardName(
+                                anomalyText,
+                                localizedName
+                            )
+                            || ContainsCardName(
+                                anomalyText,
+                                englishName
+                            )
+                            || ContainsCardName(
+                                anomalyEnglishText,
+                                localizedName
+                            )
+                            || ContainsCardName(
+                                anomalyEnglishText,
+                                englishName
+                            );
+                    }
+                );
+
+            return describedHeroPower;
+        }
+
+        private static bool ContainsCardName(
+            string text,
+            string cardName)
+        {
+            return
+                !string.IsNullOrWhiteSpace(text)
+                && !string.IsNullOrWhiteSpace(cardName)
+                && text.IndexOf(
+                    cardName,
+                    StringComparison.OrdinalIgnoreCase
+                ) >= 0;
         }
 
         private static List<Entity>
@@ -3540,6 +3681,8 @@ namespace FinalStatsPlugin
                             HeroCard = _finalHeroCard,
                             HeroPowerEntity =
                                 _finalHeroPowerSnapshot,
+                            AnomalyHeroPowerEntity =
+                                _finalAnomalyHeroPowerSnapshot,
                             TrinketEntities =
                                 _finalTrinketSnapshots,
                             AnomalyCard =
@@ -3568,6 +3711,8 @@ namespace FinalStatsPlugin
                 }
             }
 
+            _finalBoardSummaryOverlay
+                .RefreshAnomalyVisual();
             _finalBoardSummaryOverlay.SetVisible(
                 showFinalBoard
             );
@@ -3631,6 +3776,9 @@ namespace FinalStatsPlugin
                     WriteDiagnostic(
                         "FINAL BOARD SCREENSHOT FAILED"
                         + " | reason=asset loading timeout"
+                        + " | assets="
+                        + _finalBoardSummaryOverlay
+                            .GetScreenshotAssetStatus()
                     );
                     return;
                 }
@@ -3685,6 +3833,9 @@ namespace FinalStatsPlugin
                 WriteDiagnostic(
                     "FINAL BOARD SCREENSHOT SAVED"
                     + " | placement=" + _finalPlacement
+                    + " | assets="
+                    + _finalBoardSummaryOverlay
+                        .GetScreenshotAssetStatus()
                     + " | path=" + screenshotPath
                 );
             }

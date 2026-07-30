@@ -609,7 +609,18 @@ Hero Power, up to two final Trinkets, and the Battlegrounds anomaly when one
 exists. Prefer HDT's native controls and card assets for these visuals.
 Capture the anomaly from `BACON_GLOBAL_ANOMALY_DBID`, with the retained
 `GameStats.BattlegroundsDetails.AnomalyDbfId` as a fallback after HDT clears
-live entities.
+live entities. Request the full anomaly card image first. Some recent anomaly
+cards do not have a full image on HDT's asset server, so also prepare the
+anomaly portrait and its specifically related secondary Hero Power when they
+exist. Select the first real HDT asset that loads, in this order:
+
+1. full anomaly card image;
+2. anomaly portrait;
+3. related secondary Hero Power portrait.
+
+Do not repeatedly restart these asynchronous asset requests when the card and
+entity identifiers have not changed. Do not use an unrelated Hero Power as an
+anomaly fallback.
 
 Capture the main Hero Power through the player's `HERO_POWER_ENTITY` tag when
 available. Use only a controlled, active Hero Power fallback when that exact
@@ -639,8 +650,10 @@ the menu, not merely when the combat ends. HDT card assets load
 asynchronously. Do not save the PNG until both the hero portrait and native
 Hero Power portrait report a loaded image asset. When final-board trinkets are
 present, wait for their native HDT portrait assets as well. When an anomaly is
-present, wait for its full-card asset too. Use a bounded timeout and skip the
-screenshot rather than distributing a placeholder image.
+present, wait for the selected real anomaly asset too, including a supported
+portrait or related Hero Power fallback when the full image is unavailable.
+Use a bounded timeout and skip the screenshot rather than distributing a
+placeholder image when none of the real assets loads.
 
 Current visual direction:
 
