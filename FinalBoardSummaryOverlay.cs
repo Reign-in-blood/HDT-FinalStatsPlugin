@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -32,7 +33,14 @@ namespace FinalStatsPlugin
         private readonly List<Trinket> _trinkets =
             new List<Trinket>();
         private StackPanel _anomalySection;
+        private Grid _anomalyVisualContainer;
         private CardImage _anomalyImage;
+        private CardImage _anomalyPortrait;
+        private HeroPower _anomalyHeroPower;
+        private string _anomalyCardId;
+        private int _anomalyHeroPowerEntityId;
+        private string _anomalyHeroPowerCardId;
+        private string _anomalyVisualMode = "none";
         private TextBlock _heroValue;
         private TextBlock _placementValue;
         private TextBlock _mmrValue;
@@ -144,7 +152,14 @@ namespace FinalStatsPlugin
             _trinketPanel = null;
             _trinkets.Clear();
             _anomalySection = null;
+            _anomalyVisualContainer = null;
             _anomalyImage = null;
+            _anomalyPortrait = null;
+            _anomalyHeroPower = null;
+            _anomalyCardId = null;
+            _anomalyHeroPowerEntityId = 0;
+            _anomalyHeroPowerCardId = null;
+            _anomalyVisualMode = "none";
             _heroValue = null;
             _placementValue = null;
             _mmrValue = null;
@@ -418,7 +433,30 @@ namespace FinalStatsPlugin
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
-            _anomalySection.Children.Add(_anomalyImage);
+
+            _anomalyPortrait = new CardImage
+            {
+                Width = 100,
+                Height = 145,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+
+            _anomalyVisualContainer = new Grid
+            {
+                Width = 100,
+                Height = 145,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            _anomalyVisualContainer.Children.Add(_anomalyImage);
+            _anomalyVisualContainer.Children.Add(_anomalyPortrait);
+            _anomalySection.Children.Add(
+                _anomalyVisualContainer
+            );
             seasonalSection.Children.Add(_anomalySection);
 
             Grid.SetColumn(seasonalSection, 2);
@@ -737,6 +775,8 @@ namespace FinalStatsPlugin
 
         public bool AreScreenshotAssetsReady()
         {
+            RefreshAnomalyVisual();
+
             bool heroPortraitExpected =
                 _heroPortrait != null
                 && !string.IsNullOrWhiteSpace(
@@ -773,18 +813,147 @@ namespace FinalStatsPlugin
             }
 
             bool anomalyExpected =
-                _anomalyImage != null
-                && !string.IsNullOrWhiteSpace(
-                    _anomalyImage.CardId
+                !string.IsNullOrWhiteSpace(
+                    _anomalyCardId
                 );
             bool anomalyReady =
                 !anomalyExpected
-                || _anomalyImage.CardAsset != null;
+                || !string.Equals(
+                    _anomalyVisualMode,
+                    "loading",
+                    StringComparison.Ordinal
+                );
 
             return heroPortraitReady
                 && heroPowerReady
                 && trinketsReady
                 && anomalyReady;
+        }
+
+        public void RefreshAnomalyVisual()
+        {
+            if (
+                string.IsNullOrWhiteSpace(_anomalyCardId)
+                || _anomalyVisualContainer == null
+            )
+            {
+                _anomalyVisualMode = "none";
+                return;
+            }
+
+            if (_anomalyImage?.CardAsset != null)
+            {
+                ShowAnomalyVisual(
+                    _anomalyImage,
+                    "full-image"
+                );
+                return;
+            }
+
+            if (_anomalyPortrait?.CardAsset != null)
+            {
+                ShowAnomalyVisual(
+                    _anomalyPortrait,
+                    "portrait"
+                );
+                return;
+            }
+
+            HeroPowerViewModel anomalyHeroPowerViewModel =
+                _anomalyHeroPower?.DataContext
+                    as HeroPowerViewModel;
+
+            if (
+                anomalyHeroPowerViewModel
+                    ?.CardPortrait
+                    ?.Asset
+                    != null
+            )
+            {
+                ShowAnomalyVisual(
+                    _anomalyHeroPower,
+                    "hero-power"
+                );
+                return;
+            }
+
+            ShowAnomalyVisual(null, "loading");
+        }
+
+        public string GetScreenshotAssetStatus()
+        {
+            bool heroPortraitExpected =
+                _heroPortrait != null
+                && !string.IsNullOrWhiteSpace(
+                    _heroPortrait.CardId
+                );
+            HeroPowerViewModel heroPowerViewModel =
+                _heroPower?.DataContext
+                    as HeroPowerViewModel;
+            HeroPowerViewModel anomalyHeroPowerViewModel =
+                _anomalyHeroPower?.DataContext
+                    as HeroPowerViewModel;
+            int readyTrinkets = _trinkets.Count(
+                trinket =>
+                    (trinket.DataContext as TrinketViewModel)
+                        ?.CardPortrait
+                        ?.Asset
+                    != null
+            );
+
+            return "hero="
+                + (!heroPortraitExpected
+                    ? "not-expected"
+                    : _heroPortrait.CardAsset != null
+                        ? "ready"
+                        : "missing")
+                + ",heroPower="
+                + (_heroPower == null
+                    ? "not-expected"
+                    : heroPowerViewModel
+                            ?.CardPortrait
+                            ?.Asset
+                        != null
+                        ? "ready"
+                        : "missing")
+                + ",trinkets=" + readyTrinkets
+                + "/" + _trinkets.Count
+                + ",anomalyCard="
+                + (_anomalyCardId ?? "none")
+                + ",anomalyMode=" + _anomalyVisualMode
+                + ",anomalyFull="
+                + (_anomalyImage?.CardAsset != null
+                    ? "ready"
+                    : "missing")
+                + ",anomalyPortrait="
+                + (_anomalyPortrait?.CardAsset != null
+                    ? "ready"
+                    : "missing")
+                + ",anomalyHeroPower="
+                + (anomalyHeroPowerViewModel
+                        ?.CardPortrait
+                        ?.Asset
+                    != null
+                    ? "ready"
+                    : "missing");
+        }
+
+        private void ShowAnomalyVisual(
+            UIElement visual,
+            string mode)
+        {
+            foreach (
+                UIElement child
+                in _anomalyVisualContainer.Children
+            )
+            {
+                child.Visibility =
+                    ReferenceEquals(child, visual)
+                        ? Visibility.Visible
+                        : Visibility.Collapsed;
+            }
+
+            _anomalyVisualMode = mode;
         }
 
         private void UpdateHeroPortrait(FinalBoardSummaryData data)
@@ -894,21 +1063,118 @@ namespace FinalStatsPlugin
         {
             Hearthstone_Deck_Tracker.Hearthstone.Card
                 anomalyCard = data?.AnomalyCard;
+            Entity anomalyHeroPowerEntity =
+                data?.AnomalyHeroPowerEntity;
+            string anomalyCardId =
+                anomalyCard?.Id ?? string.Empty;
+            int anomalyHeroPowerEntityId =
+                anomalyHeroPowerEntity?.Id ?? 0;
+            string anomalyHeroPowerCardId =
+                anomalyHeroPowerEntity
+                    ?.Info
+                    ?.LatestCardId;
+
+            if (
+                string.IsNullOrWhiteSpace(
+                    anomalyHeroPowerCardId
+                )
+            )
+            {
+                anomalyHeroPowerCardId =
+                    anomalyHeroPowerEntity?.CardId;
+            }
+
+            anomalyHeroPowerCardId =
+                anomalyHeroPowerCardId ?? string.Empty;
 
             if (anomalyCard == null)
             {
                 _anomalySection.Visibility =
                     Visibility.Collapsed;
+                _anomalyCardId = null;
+                _anomalyHeroPowerEntityId = 0;
+                _anomalyHeroPowerCardId = null;
+                _anomalyHeroPower = null;
                 _anomalyImage.SetCardIdFromCard(null);
+                _anomalyPortrait.SetCardIdFromCard(null);
+                _anomalyVisualContainer.Children.Clear();
+                _anomalyVisualContainer.Children.Add(
+                    _anomalyImage
+                );
+                _anomalyVisualContainer.Children.Add(
+                    _anomalyPortrait
+                );
+                _anomalyVisualMode = "none";
                 return;
             }
 
             _anomalySection.Visibility =
                 Visibility.Visible;
-            _anomalyImage.SetCardIdFromCard(
-                anomalyCard,
-                CardAssetType.FullImage
-            );
+
+            if (
+                !string.Equals(
+                    _anomalyCardId,
+                    anomalyCardId,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                _anomalyCardId = anomalyCardId;
+                _anomalyImage.SetCardIdFromCard(
+                    anomalyCard,
+                    CardAssetType.FullImage
+                );
+                _anomalyPortrait.SetCardIdFromCard(
+                    anomalyCard,
+                    CardAssetType.Portrait
+                );
+            }
+
+            if (
+                anomalyHeroPowerEntityId
+                    != _anomalyHeroPowerEntityId
+                || !string.Equals(
+                    anomalyHeroPowerCardId,
+                    _anomalyHeroPowerCardId,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                _anomalyHeroPowerEntityId =
+                    anomalyHeroPowerEntityId;
+                _anomalyHeroPowerCardId =
+                    anomalyHeroPowerCardId;
+
+                if (_anomalyHeroPower != null)
+                {
+                    _anomalyVisualContainer.Children.Remove(
+                        _anomalyHeroPower
+                    );
+                    _anomalyHeroPower = null;
+                }
+
+                if (anomalyHeroPowerEntity != null)
+                {
+                    _anomalyHeroPower = new HeroPower(
+                        anomalyHeroPowerEntity
+                    )
+                    {
+                        Width = 100,
+                        Height = 100,
+                        HorizontalAlignment =
+                            HorizontalAlignment.Center,
+                        VerticalAlignment =
+                            VerticalAlignment.Center,
+                        Visibility = Visibility.Collapsed,
+                        IsHitTestVisible = false
+                    };
+                    _anomalyVisualContainer.Children.Add(
+                        _anomalyHeroPower
+                    );
+                }
+            }
+
+            RefreshAnomalyVisual();
         }
 
         private static void EnsureBitmapContainsVisiblePixels(
@@ -946,6 +1212,7 @@ namespace FinalStatsPlugin
         public Hearthstone_Deck_Tracker.Hearthstone.Card
             HeroCard { get; set; }
         public Entity HeroPowerEntity { get; set; }
+        public Entity AnomalyHeroPowerEntity { get; set; }
         public IReadOnlyList<Entity> TrinketEntities
             { get; set; }
         public Hearthstone_Deck_Tracker.Hearthstone.Card

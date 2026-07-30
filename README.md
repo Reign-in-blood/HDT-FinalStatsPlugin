@@ -26,6 +26,9 @@ The plugin currently tracks:
   total duration
 - Final hero card portrait displayed above the saved board
 - Final Hero Power displayed with HDT's native Hero Power control
+- Final Battlegrounds anomaly displayed with its full card image when
+  available, with real HDT portrait and Hero Power asset fallbacks for cards
+  whose full image is unavailable
 - Automatic PNG capture of the final board in
   `Pictures\Hearthstone final board`
 
