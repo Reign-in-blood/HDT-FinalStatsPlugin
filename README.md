@@ -29,6 +29,9 @@ The plugin currently tracks:
 - Final Battlegrounds anomaly displayed with its full card image when
   available, with real HDT portrait and Hero Power asset fallbacks for cards
   whose full image is unavailable
+- Centered final hero layout with Trinkets on the left, Hero Power and anomaly
+  on the right, and the match information bar separating it from the board
+- Player name and **Battlegrounds Final Stats** signature in the lower corners
 - Automatic PNG capture of the final board in
   `Pictures\Hearthstone final board`
 

@@ -607,6 +607,16 @@ The final-board header displays:
 The upper detail area displays the final hero card portrait, the player's final
 Hero Power, up to two final Trinkets, and the Battlegrounds anomaly when one
 exists. Prefer HDT's native controls and card assets for these visuals.
+Keep the hero portrait exactly centered horizontally in the upper half. Place
+the Trinkets to its left, then the Hero Power and anomaly to its right. A
+full-width information bar at the horizontal center separates these visuals
+from the final minion board in the lower half.
+
+Display the local player's in-game name in muted dark gray at the bottom-left
+of the final panel and `Battlegrounds Final Stats` at the bottom-right. These
+labels must remain visible without competing with the board and must not add
+new saved personal data beyond the rendered screenshot.
+
 Capture the anomaly from `BACON_GLOBAL_ANOMALY_DBID`, with the retained
 `GameStats.BattlegroundsDetails.AnomalyDbfId` as a fallback after HDT clears
 live entities. Request the full anomaly card image first. Some recent anomaly
