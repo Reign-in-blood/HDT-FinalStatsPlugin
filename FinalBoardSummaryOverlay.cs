@@ -21,6 +21,8 @@ namespace FinalStatsPlugin
         private const double PanelTop = 85;
         private const double PanelLeft = 307;
         private const double MinionSize = 104;
+        private const string PluginDisplayName =
+            "Battlegrounds Final Stats";
 
         private Border _panel;
         private StackPanel _board;
@@ -47,6 +49,8 @@ namespace FinalStatsPlugin
         private TextBlock _turnValue;
         private TextBlock _highestCreatureValue;
         private TextBlock _durationValue;
+        private TextBlock _playerNameValue;
+        private TextBlock _pluginNameValue;
 
         public void EnsureCreated()
         {
@@ -70,19 +74,13 @@ namespace FinalStatsPlugin
             root.RowDefinitions.Add(
                 new RowDefinition
                 {
-                    Height = GridLength.Auto
+                    Height = new GridLength(161)
                 }
             );
             root.RowDefinitions.Add(
                 new RowDefinition
                 {
-                    Height = GridLength.Auto
-                }
-            );
-            root.RowDefinitions.Add(
-                new RowDefinition
-                {
-                    Height = new GridLength(210)
+                    Height = new GridLength(58)
                 }
             );
             root.RowDefinitions.Add(
@@ -94,24 +92,28 @@ namespace FinalStatsPlugin
 
             Grid header = CreateHeader();
             FrameworkElement heroDetails = CreateHeroDetails();
-            Border separator = new Border
+            FrameworkElement boardArea = CreateBoardArea();
+            Border headerBar = new Border
             {
-                Height = 1,
                 Background = CreateFrozenBrush(
-                    Color.FromArgb(55, 255, 255, 255)
+                    Color.FromArgb(210, 20, 22, 26)
                 ),
-                Margin = new Thickness(4, 5, 4, 5),
+                BorderBrush = CreateFrozenBrush(
+                    Color.FromArgb(62, 255, 255, 255)
+                ),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(-20, 0, -20, 0),
+                Padding = new Thickness(16, 4, 16, 4),
+                Child = header,
                 IsHitTestVisible = false
             };
 
-            Grid.SetRow(header, 0);
-            Grid.SetRow(separator, 1);
-            Grid.SetRow(heroDetails, 2);
-            Grid.SetRow(_board, 3);
-            root.Children.Add(header);
-            root.Children.Add(separator);
+            Grid.SetRow(heroDetails, 0);
+            Grid.SetRow(headerBar, 1);
+            Grid.SetRow(boardArea, 2);
             root.Children.Add(heroDetails);
-            root.Children.Add(_board);
+            root.Children.Add(headerBar);
+            root.Children.Add(boardArea);
 
             _panel = new Border
             {
@@ -166,6 +168,8 @@ namespace FinalStatsPlugin
             _turnValue = null;
             _highestCreatureValue = null;
             _durationValue = null;
+            _playerNameValue = null;
+            _pluginNameValue = null;
         }
 
         public void UpdateSummary(
@@ -174,6 +178,7 @@ namespace FinalStatsPlugin
         {
             EnsureCreated();
             UpdateHeader(data);
+            UpdateFooter(data);
             UpdateHeroPortrait(data);
             UpdateHeroPower(data);
             UpdateTrinkets(data);
@@ -287,7 +292,7 @@ namespace FinalStatsPlugin
         {
             Grid details = new Grid
             {
-                Width = 740,
+                Width = 760,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -295,7 +300,7 @@ namespace FinalStatsPlugin
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(160)
+                    Width = new GridLength(300)
                 }
             );
             details.ColumnDefinitions.Add(
@@ -307,14 +312,14 @@ namespace FinalStatsPlugin
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(1, GridUnitType.Star)
+                    Width = new GridLength(300)
                 }
             );
 
             _heroPortrait = new CardImage
             {
-                Width = 140,
-                Height = 196,
+                Width = 106,
+                Height = 150,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -322,53 +327,27 @@ namespace FinalStatsPlugin
 
             Border portraitContainer = new Border
             {
-                Width = 156,
-                Height = 204,
+                Width = 126,
+                Height = 160,
                 Background = CreateFrozenBrush(
                     Color.FromArgb(80, 20, 22, 26)
                 ),
                 BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(12),
                 Child = _heroPortrait,
-                HorizontalAlignment = HorizontalAlignment.Left,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
 
-            Grid.SetColumn(portraitContainer, 0);
+            Grid.SetColumn(portraitContainer, 1);
             details.Children.Add(portraitContainer);
-
-            _heroPowerContainer = new Border
-            {
-                Width = 150,
-                Height = 150,
-                Background = CreateFrozenBrush(
-                    Color.FromArgb(80, 20, 22, 26)
-                ),
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(75),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                IsHitTestVisible = false
-            };
-
-            Grid.SetColumn(_heroPowerContainer, 1);
-            details.Children.Add(_heroPowerContainer);
-
-            StackPanel seasonalSection = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                IsHitTestVisible = false
-            };
 
             StackPanel trinketSection = new StackPanel
             {
                 Orientation = Orientation.Vertical,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0),
                 IsHitTestVisible = false
             };
 
@@ -397,7 +376,32 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
             trinketSection.Children.Add(_trinketPanel);
-            seasonalSection.Children.Add(trinketSection);
+            Grid.SetColumn(trinketSection, 0);
+            details.Children.Add(trinketSection);
+
+            StackPanel rightSection = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            _heroPowerContainer = new Border
+            {
+                Width = 130,
+                Height = 130,
+                Background = CreateFrozenBrush(
+                    Color.FromArgb(80, 20, 22, 26)
+                ),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(65),
+                Margin = new Thickness(0, 0, 18, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+            rightSection.Children.Add(_heroPowerContainer);
 
             _anomalySection = new StackPanel
             {
@@ -427,8 +431,8 @@ namespace FinalStatsPlugin
 
             _anomalyImage = new CardImage
             {
-                Width = 100,
-                Height = 145,
+                Width = 90,
+                Height = 130,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -436,8 +440,8 @@ namespace FinalStatsPlugin
 
             _anomalyPortrait = new CardImage
             {
-                Width = 100,
-                Height = 145,
+                Width = 90,
+                Height = 130,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Collapsed,
@@ -446,8 +450,8 @@ namespace FinalStatsPlugin
 
             _anomalyVisualContainer = new Grid
             {
-                Width = 100,
-                Height = 145,
+                Width = 90,
+                Height = 130,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -457,11 +461,78 @@ namespace FinalStatsPlugin
             _anomalySection.Children.Add(
                 _anomalyVisualContainer
             );
-            seasonalSection.Children.Add(_anomalySection);
+            rightSection.Children.Add(_anomalySection);
 
-            Grid.SetColumn(seasonalSection, 2);
-            details.Children.Add(seasonalSection);
+            Grid.SetColumn(rightSection, 2);
+            details.Children.Add(rightSection);
             return details;
+        }
+
+        private FrameworkElement CreateBoardArea()
+        {
+            Grid boardArea = new Grid
+            {
+                IsHitTestVisible = false
+            };
+            boardArea.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
+                }
+            );
+            boardArea.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = GridLength.Auto
+                }
+            );
+
+            Grid footer = new Grid
+            {
+                Margin = new Thickness(0, 0, 0, -3),
+                IsHitTestVisible = false
+            };
+
+            _playerNameValue = new TextBlock
+            {
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CreateFrozenBrush(
+                    Color.FromRgb(104, 109, 116)
+                ),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 300,
+                IsHitTestVisible = false
+            };
+
+            _pluginNameValue = new TextBlock
+            {
+                Text = PluginDisplayName,
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CreateFrozenBrush(
+                    Color.FromRgb(132, 115, 78)
+                ),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                IsHitTestVisible = false
+            };
+
+            footer.Children.Add(_playerNameValue);
+            footer.Children.Add(_pluginNameValue);
+
+            Grid.SetRow(_board, 0);
+            Grid.SetRow(footer, 1);
+            boardArea.Children.Add(_board);
+            boardArea.Children.Add(footer);
+            return boardArea;
         }
 
         private static void AddHeaderColumn(
@@ -584,6 +655,17 @@ namespace FinalStatsPlugin
                     Color.FromRgb(154, 161, 169)
                 );
             }
+        }
+
+        private void UpdateFooter(FinalBoardSummaryData data)
+        {
+            string playerName = data?.PlayerName;
+
+            _playerNameValue.Text =
+                string.IsNullOrWhiteSpace(playerName)
+                    ? string.Empty
+                    : playerName;
+            _pluginNameValue.Text = PluginDisplayName;
         }
 
         private static string FormatPlacement(int placement)
@@ -1019,8 +1101,8 @@ namespace FinalStatsPlugin
 
             _heroPower = new HeroPower(heroPowerEntity)
             {
-                Width = 140,
-                Height = 140,
+                Width = 120,
+                Height = 120,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -1047,9 +1129,9 @@ namespace FinalStatsPlugin
 
                 Trinket trinket = new Trinket(trinketEntity)
                 {
-                    Width = 110,
-                    Height = 110,
-                    Margin = new Thickness(5, 0, 5, 0),
+                    Width = 100,
+                    Height = 100,
+                    Margin = new Thickness(4, 0, 4, 0),
                     IsHitTestVisible = false
                 };
 
@@ -1159,8 +1241,8 @@ namespace FinalStatsPlugin
                         anomalyHeroPowerEntity
                     )
                     {
-                        Width = 100,
-                        Height = 100,
+                        Width = 90,
+                        Height = 90,
                         HorizontalAlignment =
                             HorizontalAlignment.Center,
                         VerticalAlignment =
@@ -1208,6 +1290,7 @@ namespace FinalStatsPlugin
 
     internal sealed class FinalBoardSummaryData
     {
+        public string PlayerName { get; set; }
         public string HeroName { get; set; }
         public Hearthstone_Deck_Tracker.Hearthstone.Card
             HeroCard { get; set; }

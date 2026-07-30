@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 43);
+        public Version Version => new Version(0, 1, 44);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -144,6 +144,7 @@ namespace FinalStatsPlugin
         private bool _finalBoardNeedsRefresh;
         private bool _finalBoardRenderFailed;
         private GameStats _finalGameStats;
+        private string _finalPlayerName;
         private string _finalHeroName;
         private Card _finalHeroCard;
         private Entity _finalHeroPowerSnapshot;
@@ -639,6 +640,7 @@ namespace FinalStatsPlugin
             _finalBoardNeedsRefresh = true;
             _finalBoardRenderFailed = false;
             _finalGameStats = null;
+            _finalPlayerName = null;
             _finalHeroName = null;
             _finalHeroCard = null;
             _finalHeroPowerSnapshot = null;
@@ -811,6 +813,21 @@ namespace FinalStatsPlugin
                 }
 
                 bool changed = false;
+                string playerName = Core.Game.Player?.Name;
+
+                if (
+                    !string.IsNullOrWhiteSpace(playerName)
+                    && !string.Equals(
+                        _finalPlayerName,
+                        playerName,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    _finalPlayerName = playerName;
+                    changed = true;
+                }
+
                 int anomalyDbfId =
                     Core.Game.GameEntity?.GetTag(
                         GameTag.BACON_GLOBAL_ANOMALY_DBID
@@ -3677,6 +3694,7 @@ namespace FinalStatsPlugin
                         _finalBoardSnapshot,
                         new FinalBoardSummaryData
                         {
+                            PlayerName = _finalPlayerName,
                             HeroName = _finalHeroName,
                             HeroCard = _finalHeroCard,
                             HeroPowerEntity =
