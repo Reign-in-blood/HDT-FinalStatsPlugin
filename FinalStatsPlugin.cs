@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 44);
+        public Version Version => new Version(0, 1, 53);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------

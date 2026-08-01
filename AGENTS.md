@@ -20,6 +20,10 @@ Before changing any file:
 6. compile and test when the environment allows it;
 7. clearly report what was and was not verified.
 
+Always re-read this entire `AGENTS.md` at the start of every task that may
+change the repository, even if it was already read earlier in the same
+conversation.
+
 Direct instructions from the user for a specific task take priority over this file.
 
 ---
@@ -364,6 +368,9 @@ When reporting work:
 - clearly list remaining manual tests;
 - explain errors in a way a beginner can follow.
 
+After compiling a DLL, always state the exact name of the current Git test
+branch and the exact path of the compiled DLL in the final report.
+
 Do not provide only isolated snippets when the task requires a complete repository change. Modify the appropriate files coherently.
 
 ---
@@ -587,8 +594,8 @@ CategoryHeaderHeight: 20
 Current final-board summary layout:
 
 ```text
-Width: 918
-Height: 400
+Width: 920
+Height: 440
 Top: 85
 Left: 307
 Top corner radius: 0

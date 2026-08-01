@@ -16,11 +16,11 @@ namespace FinalStatsPlugin
 {
     internal sealed class FinalBoardSummaryOverlay
     {
-        private const double PanelWidth = 918;
-        private const double PanelHeight = 400;
+        private const double PanelWidth = 920;
+        private const double PanelHeight = 440;
         private const double PanelTop = 85;
         private const double PanelLeft = 307;
-        private const double MinionSize = 104;
+        private const double MinionSize = 125;
         private const string PluginDisplayName =
             "Battlegrounds Final Stats";
 
@@ -69,12 +69,13 @@ namespace FinalStatsPlugin
             {
                 SnapsToDevicePixels = true,
                 UseLayoutRounding = true,
+                RenderTransform = new TranslateTransform(0, -15),
                 IsHitTestVisible = false
             };
             root.RowDefinitions.Add(
                 new RowDefinition
                 {
-                    Height = new GridLength(161)
+                    Height = new GridLength(212)
                 }
             );
             root.RowDefinitions.Add(
@@ -102,7 +103,6 @@ namespace FinalStatsPlugin
                     Color.FromArgb(62, 255, 255, 255)
                 ),
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(-20, 0, -20, 0),
                 Padding = new Thickness(16, 4, 16, 4),
                 Child = header,
                 IsHitTestVisible = false
@@ -213,7 +213,6 @@ namespace FinalStatsPlugin
                     {
                         Width = MinionSize,
                         Height = MinionSize,
-                        Margin = new Thickness(1),
                         IsHitTestVisible = false
                     }
                 );
@@ -231,40 +230,40 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
 
-            AddHeaderColumn(header, 190);
-            AddHeaderColumn(header, 70);
-            AddHeaderColumn(header, 100);
-            AddHeaderColumn(header, 70);
-            AddHeaderColumn(header, 200);
+            AddHeaderColumn(header, 80);
+            AddHeaderColumn(header, 110);
+            AddHeaderColumn(header, 90);
+            AddHeaderColumn(header, 180);
+            AddHeaderColumn(header, 170);
             AddHeaderColumn(header, 110);
 
             AddHeaderCell(
                 header,
                 0,
-                "HERO",
-                out _heroValue,
-                18
-            );
-            AddHeaderCell(
-                header,
-                1,
-                "PLACE",
+                "RANK",
                 out _placementValue,
                 17
             );
             AddHeaderCell(
                 header,
-                2,
+                1,
                 "MMR",
                 out _mmrValue,
                 17
             );
             AddHeaderCell(
                 header,
-                3,
+                2,
                 "TURN",
                 out _turnValue,
                 17
+            );
+            AddHeaderCell(
+                header,
+                3,
+                "HERO",
+                out _heroValue,
+                18
             );
             AddHeaderCell(
                 header,
@@ -318,30 +317,15 @@ namespace FinalStatsPlugin
 
             _heroPortrait = new CardImage
             {
-                Width = 106,
-                Height = 150,
+                Width = 170,
+                Height = 240,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
 
-            Border portraitContainer = new Border
-            {
-                Width = 126,
-                Height = 160,
-                Background = CreateFrozenBrush(
-                    Color.FromArgb(80, 20, 22, 26)
-                ),
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(12),
-                Child = _heroPortrait,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                IsHitTestVisible = false
-            };
-
-            Grid.SetColumn(portraitContainer, 1);
-            details.Children.Add(portraitContainer);
+            Grid.SetColumn(_heroPortrait, 1);
+            details.Children.Add(_heroPortrait);
 
             StackPanel trinketSection = new StackPanel
             {
@@ -350,23 +334,6 @@ namespace FinalStatsPlugin
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
-
-            trinketSection.Children.Add(
-                new TextBlock
-                {
-                    Text = "TRINKETS",
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontSize = 9.5,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = CreateFrozenBrush(
-                        Color.FromRgb(154, 161, 169)
-                    ),
-                    HorizontalAlignment =
-                        HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 4),
-                    IsHitTestVisible = false
-                }
-            );
 
             _trinketPanel = new StackPanel
             {
@@ -391,12 +358,9 @@ namespace FinalStatsPlugin
             {
                 Width = 130,
                 Height = 130,
-                Background = CreateFrozenBrush(
-                    Color.FromArgb(80, 20, 22, 26)
-                ),
+                Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(65),
-                Margin = new Thickness(0, 0, 18, 0),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -411,23 +375,6 @@ namespace FinalStatsPlugin
                 Visibility = Visibility.Collapsed,
                 IsHitTestVisible = false
             };
-
-            _anomalySection.Children.Add(
-                new TextBlock
-                {
-                    Text = "ANOMALY",
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontSize = 9.5,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = CreateFrozenBrush(
-                        Color.FromRgb(154, 161, 169)
-                    ),
-                    HorizontalAlignment =
-                        HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 4),
-                    IsHitTestVisible = false
-                }
-            );
 
             _anomalyImage = new CardImage
             {
@@ -492,7 +439,6 @@ namespace FinalStatsPlugin
 
             Grid footer = new Grid
             {
-                Margin = new Thickness(0, 0, 0, -3),
                 IsHitTestVisible = false
             };
 
@@ -559,7 +505,6 @@ namespace FinalStatsPlugin
                 Orientation = Orientation.Vertical,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(6, 0, 6, 0),
                 IsHitTestVisible = false
             };
 
@@ -664,8 +609,26 @@ namespace FinalStatsPlugin
             _playerNameValue.Text =
                 string.IsNullOrWhiteSpace(playerName)
                     ? string.Empty
-                    : playerName;
+                    : RemoveBattleTagCode(playerName);
             _pluginNameValue.Text = PluginDisplayName;
+        }
+
+        private static string RemoveBattleTagCode(string playerName)
+        {
+            int separatorIndex = playerName.LastIndexOf('#');
+
+            if (
+                separatorIndex <= 0
+                || separatorIndex == playerName.Length - 1
+            )
+            {
+                return playerName;
+            }
+
+            string code = playerName.Substring(separatorIndex + 1);
+            return code.All(char.IsDigit)
+                ? playerName.Substring(0, separatorIndex)
+                : playerName;
         }
 
         private static string FormatPlacement(int placement)
@@ -1131,7 +1094,6 @@ namespace FinalStatsPlugin
                 {
                     Width = 100,
                     Height = 100,
-                    Margin = new Thickness(4, 0, 4, 0),
                     IsHitTestVisible = false
                 };
 
