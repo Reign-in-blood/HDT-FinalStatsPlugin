@@ -124,9 +124,10 @@ namespace FinalStatsPlugin
             {
                 Width = PanelWidth,
                 Height = PanelHeight,
-                Background = CreateFrozenBrush(
-                    Color.FromArgb(250, 8, 9, 11)
-                ),
+                Background = CreatePanelBackground(),
+                //Background = CreateFrozenBrush(
+                //    Color.FromArgb(250, 8, 9, 11)
+                //),
                 BorderBrush = CreateFrozenBrush(
                     Color.FromArgb(70, 255, 255, 255)
                 ),
@@ -1252,6 +1253,40 @@ namespace FinalStatsPlugin
             );
         }
 
+        private static Brush CreatePanelBackground()
+        {
+            try
+            {
+                BitmapImage image = new BitmapImage();
+
+                image.BeginInit();
+                image.UriSource = new Uri(
+                    "pack://application:,,,/HDT-FinalStatsPlugin;component/Images/FinalBoardBackground.png",
+                    UriKind.Absolute
+                );
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.EndInit();
+                image.Freeze();
+
+                ImageBrush brush = new ImageBrush(image)
+                {
+                    Stretch = Stretch.Fill,
+                    AlignmentX = AlignmentX.Center,
+                    AlignmentY = AlignmentY.Center
+                };
+
+                brush.Freeze();
+                return brush;
+            }
+            catch
+            {
+                // Fond noir de secours si l'image est absente
+                // ou si son chemin est incorrect.
+                return CreateFrozenBrush(
+                    Color.FromArgb(250, 8, 9, 11)
+                );
+            }
+        }
         private static Brush CreateFrozenBrush(Color color)
         {
             SolidColorBrush brush = new SolidColorBrush(color);
@@ -1265,13 +1300,15 @@ namespace FinalStatsPlugin
         public string PlayerName { get; set; }
         public string HeroName { get; set; }
         public Hearthstone_Deck_Tracker.Hearthstone.Card
-            HeroCard { get; set; }
+            HeroCard
+        { get; set; }
         public Entity HeroPowerEntity { get; set; }
         public Entity AnomalyHeroPowerEntity { get; set; }
         public IReadOnlyList<Entity> TrinketEntities
-            { get; set; }
+        { get; set; }
         public Hearthstone_Deck_Tracker.Hearthstone.Card
-            AnomalyCard { get; set; }
+            AnomalyCard
+        { get; set; }
         public int Placement { get; set; }
         public int? MmrDelta { get; set; }
         public int Turn { get; set; }

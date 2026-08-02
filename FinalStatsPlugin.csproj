@@ -19,6 +19,8 @@
     <Reference Include="HearthstoneDeckTracker">
       <HintPath>lib\HearthstoneDeckTracker.exe</HintPath>
       <Private>false</Private>
+      <None Remove="Images\FinalBoardBackground.png" />
+      <Resource Include="Images\FinalBoardBackground.png" />
     </Reference>
 
     <Reference Include="HearthDb">
