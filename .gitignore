@@ -13,6 +13,10 @@
 *.sln.docstates
 *.rsuser
 
+# Agents and build
+/DeployLocal.bat
+/Agents.md
+
 # Build outputs
 bin/
 obj/

@@ -17,10 +17,10 @@ namespace FinalStatsPlugin
     internal sealed class FinalBoardSummaryOverlay
     {
         private const double PanelWidth = 920;
-        private const double PanelHeight = 440;
+        private const double PanelHeight = 410;
         private const double PanelTop = 85;
         private const double PanelLeft = 307;
-        private const double MinionSize = 125;
+        private const double MinionSize = 134; //130 //Taille des Minions
         private const string PluginDisplayName =
             "Battlegrounds Final Stats";
 
@@ -62,6 +62,7 @@ namespace FinalStatsPlugin
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                RenderTransform = new TranslateTransform(0, -20), //hauteur des minions
                 IsHitTestVisible = false
             };
 
@@ -75,7 +76,7 @@ namespace FinalStatsPlugin
             root.RowDefinitions.Add(
                 new RowDefinition
                 {
-                    Height = new GridLength(212)
+                    Height = new GridLength(204) //212
                 }
             );
             root.RowDefinitions.Add(
@@ -104,6 +105,7 @@ namespace FinalStatsPlugin
                 ),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(16, 4, 16, 4),
+                RenderTransform = new TranslateTransform(0, -30),
                 Child = header,
                 IsHitTestVisible = false
             };
@@ -111,6 +113,9 @@ namespace FinalStatsPlugin
             Grid.SetRow(heroDetails, 0);
             Grid.SetRow(headerBar, 1);
             Grid.SetRow(boardArea, 2);
+            Panel.SetZIndex(headerBar, 0);
+            Panel.SetZIndex(boardArea, 5);
+            Panel.SetZIndex(heroDetails, 10);
             root.Children.Add(heroDetails);
             root.Children.Add(headerBar);
             root.Children.Add(boardArea);
@@ -127,7 +132,7 @@ namespace FinalStatsPlugin
                 ),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(0),
-                Padding = new Thickness(20, 8, 20, 10),
+                Padding = new Thickness(0),
                 Child = root,
                 SnapsToDevicePixels = true,
                 UseLayoutRounding = true,
@@ -213,6 +218,7 @@ namespace FinalStatsPlugin
                     {
                         Width = MinionSize,
                         Height = MinionSize,
+                        Margin = new Thickness(-5, 0, -5, 0), //espacement des cartes
                         IsHitTestVisible = false
                     }
                 );
@@ -291,7 +297,7 @@ namespace FinalStatsPlugin
         {
             Grid details = new Grid
             {
-                Width = 760,
+                Width = 600,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -299,26 +305,26 @@ namespace FinalStatsPlugin
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(300)
+                    Width = new GridLength(200)
                 }
             );
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(160)
+                    Width = new GridLength(200)
                 }
             );
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(300)
+                    Width = new GridLength(200)
                 }
             );
 
             _heroPortrait = new CardImage
             {
-                Width = 170,
-                Height = 240,
+                Width = 190, //200
+                Height = 268, //282
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -358,9 +364,6 @@ namespace FinalStatsPlugin
             {
                 Width = 130,
                 Height = 130,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(65),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -419,6 +422,7 @@ namespace FinalStatsPlugin
         {
             Grid boardArea = new Grid
             {
+                ClipToBounds = false, //add
                 IsHitTestVisible = false
             };
             boardArea.RowDefinitions.Add(
@@ -430,28 +434,30 @@ namespace FinalStatsPlugin
                     )
                 }
             );
-            boardArea.RowDefinitions.Add(
-                new RowDefinition
-                {
-                    Height = GridLength.Auto
-                }
-            );
+            //boardArea.RowDefinitions.Add(
+            //    new RowDefinition
+            //    {
+            //        Height = GridLength.Auto
+            //    }
+            //);
 
             Grid footer = new Grid
             {
+                RenderTransform = new TranslateTransform(0, 5),
                 IsHitTestVisible = false
             };
 
             _playerNameValue = new TextBlock
             {
                 FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 11,
+                FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = CreateFrozenBrush(
                     Color.FromRgb(104, 109, 116)
                 ),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(20, 0, 0, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 MaxWidth = 300,
                 IsHitTestVisible = false
@@ -468,14 +474,18 @@ namespace FinalStatsPlugin
                 ),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 20, 0),
                 IsHitTestVisible = false
             };
 
             footer.Children.Add(_playerNameValue);
             footer.Children.Add(_pluginNameValue);
 
-            Grid.SetRow(_board, 0);
-            Grid.SetRow(footer, 1);
+            Panel.SetZIndex(_board, 10); //add
+            Panel.SetZIndex(footer, 20); //add
+
+            //Grid.SetRow(_board, 0);
+            //Grid.SetRow(footer, 1);
             boardArea.Children.Add(_board);
             boardArea.Children.Add(footer);
             return boardArea;
