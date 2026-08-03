@@ -20,7 +20,7 @@ namespace FinalStatsPlugin
         private const double PanelHeight = 410;
         private const double PanelTop = 85;
         private const double PanelLeft = 307;
-        private const double MinionSize = 134; //130 //Taille des Minions
+        private const double MinionSize = 134; //Taille des Minions
         private const string PluginDisplayName =
             "Battlegrounds Final Stats";
 
@@ -97,13 +97,6 @@ namespace FinalStatsPlugin
             FrameworkElement boardArea = CreateBoardArea();
             Border headerBar = new Border
             {
-                Background = CreateFrozenBrush(
-                    Color.FromArgb(210, 20, 22, 26)
-                ),
-                BorderBrush = CreateFrozenBrush(
-                    Color.FromArgb(62, 255, 255, 255)
-                ),
-                BorderThickness = new Thickness(1),
                 Padding = new Thickness(16, 4, 16, 4),
                 RenderTransform = new TranslateTransform(0, -30),
                 Child = header,
@@ -125,9 +118,6 @@ namespace FinalStatsPlugin
                 Width = PanelWidth,
                 Height = PanelHeight,
                 Background = CreatePanelBackground(),
-                //Background = CreateFrozenBrush(
-                //    Color.FromArgb(250, 8, 9, 11)
-                //),
                 BorderBrush = CreateFrozenBrush(
                     Color.FromArgb(70, 255, 255, 255)
                 ),
@@ -324,8 +314,8 @@ namespace FinalStatsPlugin
 
             _heroPortrait = new CardImage
             {
-                Width = 190, //200
-                Height = 268, //282
+                Width = 190,
+                Height = 268,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -435,16 +425,10 @@ namespace FinalStatsPlugin
                     )
                 }
             );
-            //boardArea.RowDefinitions.Add(
-            //    new RowDefinition
-            //    {
-            //        Height = GridLength.Auto
-            //    }
-            //);
 
             Grid footer = new Grid
             {
-                RenderTransform = new TranslateTransform(0, 5),
+                RenderTransform = new TranslateTransform(0, 7),
                 IsHitTestVisible = false
             };
 
@@ -482,11 +466,9 @@ namespace FinalStatsPlugin
             footer.Children.Add(_playerNameValue);
             footer.Children.Add(_pluginNameValue);
 
-            Panel.SetZIndex(_board, 10); //add
-            Panel.SetZIndex(footer, 20); //add
+            Panel.SetZIndex(_board, 10);
+            Panel.SetZIndex(footer, 20);
 
-            //Grid.SetRow(_board, 0);
-            //Grid.SetRow(footer, 1);
             boardArea.Children.Add(_board);
             boardArea.Children.Add(footer);
             return boardArea;
@@ -770,10 +752,6 @@ namespace FinalStatsPlugin
                         PixelFormats.Pbgra32
                     );
 
-                // Rendering the panel directly also applies its Canvas
-                // position. The content then lands outside the fixed-size
-                // bitmap and produces a fully transparent PNG. A VisualBrush
-                // renders the panel in local coordinates.
                 DrawingVisual localVisual = new DrawingVisual();
 
                 using (
@@ -1280,8 +1258,6 @@ namespace FinalStatsPlugin
             }
             catch
             {
-                // Fond noir de secours si l'image est absente
-                // ou si son chemin est incorrect.
                 return CreateFrozenBrush(
                     Color.FromArgb(250, 8, 9, 11)
                 );
