@@ -404,9 +404,7 @@ namespace FinalStatsPlugin
                 if (string.IsNullOrWhiteSpace(partnerHeroCardId))
                 {
                     partnerHeroCardId = NormalizeHeroCardId(
-                        ResolvePartnerHeroCardIdFromTeammateState(
-                            partnerPlayerId
-                        )
+                        ResolvePartnerHeroCardIdFromTeammateState()
                     );
                 }
 
@@ -457,16 +455,30 @@ namespace FinalStatsPlugin
             BattlegroundsDuosBoardState state =
                 Core.Game.BattlegroundsDuosBoardState;
 
-            if (state?.Entities == null || state.Entities.Count == 0)
+            int boardControllerId =
+                ResolveTeammateStateBoardController(state);
+
+            if (
+                state?.Entities == null
+                || state.Entities.Count == 0
+                || !state.IsViewingTeammate
+                || Core.Game.IsBattlegroundsCombatPhase
+                || boardControllerId <= 0
+            )
             {
                 LogTeammateStateDiagnostic(
                     state,
+                    boardControllerId,
                     0,
                     source
                 );
                 return false;
             }
 
+            // HDT interprets HearthMirror's teammate state as a replacement
+            // view of the friendly side. Its CONTROLLER values therefore use
+            // Core.Game.Player.Id, not BACON_DUO_TEAMMATE_PLAYER_ID. The latter
+            // remains the stable identity used for the teammate name only.
             List<BattlegroundsTeammateBoardStateEntity> rawBoard =
                 state.Entities
                     .Where(
@@ -475,7 +487,7 @@ namespace FinalStatsPlugin
                             && GetTeammateTag(
                                 entity,
                                 GameTag.CONTROLLER
-                            ) == _partnerPlayerId
+                            ) == boardControllerId
                             && GetTeammateTag(
                                 entity,
                                 GameTag.ZONE
@@ -496,6 +508,7 @@ namespace FinalStatsPlugin
 
             LogTeammateStateDiagnostic(
                 state,
+                boardControllerId,
                 rawBoard.Count,
                 source
             );
@@ -536,6 +549,7 @@ namespace FinalStatsPlugin
                 "DUOS TEAMMATE BOARD SNAPSHOT"
                 + " | source=" + source
                 + " | playerId=" + _partnerPlayerId
+                + " | boardController=" + boardControllerId
                 + " | viewing=" + state.IsViewingTeammate
                 + " | minions=" + board.Count
             );
@@ -543,8 +557,23 @@ namespace FinalStatsPlugin
             return true;
         }
 
+        private static int ResolveTeammateStateBoardController(
+            BattlegroundsDuosBoardState state)
+        {
+            if (
+                state?.IsViewingTeammate != true
+                || Core.Game.IsBattlegroundsCombatPhase
+            )
+            {
+                return 0;
+            }
+
+            return Core.Game.Player?.Id ?? 0;
+        }
+
         private void LogTeammateStateDiagnostic(
             BattlegroundsDuosBoardState state,
+            int boardControllerId,
             int partnerMinionCount,
             string source)
         {
@@ -580,6 +609,7 @@ namespace FinalStatsPlugin
                 + " | viewing=" + viewing
                 + " | entities=" + entityCount
                 + " | partnerPlayerId=" + _partnerPlayerId
+                + " | boardController=" + boardControllerId
                 + " | controllers=" + controllers
                 + " | partnerMinions=" + partnerMinionCount;
 
@@ -598,17 +628,21 @@ namespace FinalStatsPlugin
             Log(diagnostic + " | source=" + source);
         }
 
-        private static string ResolvePartnerHeroCardIdFromTeammateState(
-            int partnerPlayerId)
+        private static string ResolvePartnerHeroCardIdFromTeammateState()
         {
-            if (partnerPlayerId <= 0)
-                return null;
-
             BattlegroundsDuosBoardState state =
                 Core.Game.BattlegroundsDuosBoardState;
 
-            if (state?.Entities == null)
+            int boardControllerId =
+                ResolveTeammateStateBoardController(state);
+
+            if (
+                state?.Entities == null
+                || boardControllerId <= 0
+            )
+            {
                 return null;
+            }
 
             BattlegroundsTeammateBoardStateEntity hero =
                 state.Entities.FirstOrDefault(
@@ -617,7 +651,7 @@ namespace FinalStatsPlugin
                         && GetTeammateTag(
                             entity,
                             GameTag.CONTROLLER
-                        ) == partnerPlayerId
+                        ) == boardControllerId
                         && GetTeammateTag(
                             entity,
                             GameTag.CARDTYPE
