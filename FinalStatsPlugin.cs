@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 53);
+        public Version Version => new Version(0, 1, 54);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -138,6 +138,9 @@ namespace FinalStatsPlugin
         private readonly FinalBoardSummaryOverlay
             _finalBoardSummaryOverlay =
                 new FinalBoardSummaryOverlay();
+        private readonly DuosFinalBoardTracker
+            _duosFinalBoardTracker =
+                new DuosFinalBoardTracker(WriteDiagnostic);
         private readonly List<Entity> _finalBoardSnapshot =
             new List<Entity>();
         private bool _hasFinalBoardSnapshot;
@@ -350,6 +353,8 @@ namespace FinalStatsPlugin
                 _tavernSpellBuffValue = null;
                 _tavernMinionBuffValue = null;
             });
+
+            _duosFinalBoardTracker.Reset();
         }
 
         public void OnButtonPress()
@@ -568,6 +573,7 @@ namespace FinalStatsPlugin
             _finalSummaryAllowedInCurrentMode = true;
             _previousCombatPhase = null;
             _finalGameStats = Core.Game.CurrentGameStats;
+            _duosFinalBoardTracker.BeginMatch();
             CaptureFinalMatchHeaderData();
 
             WriteDiagnostic("MATCH START");
@@ -579,6 +585,17 @@ namespace FinalStatsPlugin
                 return;
 
             CaptureFinalMatchHeaderData();
+
+            if (
+                _duosFinalBoardTracker.Update(
+                    "match-end",
+                    true
+                )
+            )
+            {
+                _finalBoardNeedsRefresh = true;
+            }
+
             FinalizeHeroCombatDamage();
             _matchStopwatch.Stop();
             _finalMatchDuration = _matchStopwatch.Elapsed;
@@ -626,6 +643,10 @@ namespace FinalStatsPlugin
                 + "/" + _highestTavernSpellHealth
                 + " | tavernBuff=" + _highestTavernMinionAttack
                 + "/" + _highestTavernMinionHealth
+                + " | duos="
+                + _duosFinalBoardTracker.IsDuosMatch
+                + " | partnerBoard="
+                + _duosFinalBoardTracker.PartnerBoardSnapshot.Count
             );
         }
 
@@ -659,6 +680,7 @@ namespace FinalStatsPlugin
                 DateTime.MinValue;
             _finalBoardScreenshotTimestamp =
                 DateTime.MinValue;
+            _duosFinalBoardTracker.Reset();
 
             _goldSpent = 0;
             _cardsBought = 0;
@@ -748,6 +770,17 @@ namespace FinalStatsPlugin
 
             TrackGoldSpent();
             ProcessPowerLog();
+
+            if (
+                _duosFinalBoardTracker.Update(
+                    "match-update",
+                    false
+                )
+            )
+            {
+                _finalBoardNeedsRefresh = true;
+            }
+
             TrackRerollStatistics();
             TrackPlayedSpellGameTag();
             TrackHighestStats();
@@ -786,10 +819,23 @@ namespace FinalStatsPlugin
                 _hasFinalBoardSnapshot = true;
                 _finalBoardNeedsRefresh = true;
 
+                if (
+                    _duosFinalBoardTracker.Update(
+                        source,
+                        true
+                    )
+                )
+                {
+                    _finalBoardNeedsRefresh = true;
+                }
+
                 WriteDiagnostic(
                     "FINAL BOARD SNAPSHOT"
                     + " | source=" + source
                     + " | minions=" + entities.Count
+                    + " | partnerMinions="
+                    + _duosFinalBoardTracker
+                        .PartnerBoardSnapshot.Count
                 );
             }
             catch (Exception ex)
@@ -2437,6 +2483,9 @@ namespace FinalStatsPlugin
             if (string.IsNullOrEmpty(line))
                 return;
 
+            if (_duosFinalBoardTracker.ProcessPowerLogLine(line))
+                _finalBoardNeedsRefresh = true;
+
             TryQueueTavernRefreshAction(line);
             TryCountTavernPurchaseFromPowerLog(line);
 
@@ -3712,7 +3761,16 @@ namespace FinalStatsPlugin
                                 _highestCreatureAttack,
                             HighestCreatureHealth =
                                 _highestCreatureHealth,
-                            Duration = _finalMatchDuration
+                            Duration = _finalMatchDuration,
+                            IsDuosMatch =
+                                _duosFinalBoardTracker
+                                    .IsDuosMatch,
+                            PartnerName =
+                                _duosFinalBoardTracker
+                                    .PartnerName,
+                            PartnerBoardEntities =
+                                _duosFinalBoardTracker
+                                    .PartnerBoardSnapshot
                         }
                     );
                     _finalBoardNeedsRefresh = false;
@@ -3851,6 +3909,11 @@ namespace FinalStatsPlugin
                 WriteDiagnostic(
                     "FINAL BOARD SCREENSHOT SAVED"
                     + " | placement=" + _finalPlacement
+                    + " | duos="
+                    + _duosFinalBoardTracker.IsDuosMatch
+                    + " | partnerBoard="
+                    + _duosFinalBoardTracker
+                        .PartnerBoardSnapshot.Count
                     + " | assets="
                     + _finalBoardSummaryOverlay
                         .GetScreenshotAssetStatus()
