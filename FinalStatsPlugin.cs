@@ -34,7 +34,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Show / hide";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 54);
+        public Version Version => new Version(0, 1, 55);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -793,32 +793,6 @@ namespace FinalStatsPlugin
         {
             try
             {
-                CaptureFinalMatchHeaderData();
-
-                List<Entity> entities = Core.Game.Entities.Values
-                    .Where(
-                        entity =>
-                            entity != null
-                            && entity.IsMinion
-                            && entity.IsInPlay
-                            && entity.IsControlledBy(
-                                Core.Game.Player.Id
-                            )
-                    )
-                    .OrderBy(
-                        entity =>
-                            entity.GetTag(
-                                GameTag.ZONE_POSITION
-                            )
-                    )
-                    .Select(entity => entity.Clone())
-                    .ToList();
-
-                _finalBoardSnapshot.Clear();
-                _finalBoardSnapshot.AddRange(entities);
-                _hasFinalBoardSnapshot = true;
-                _finalBoardNeedsRefresh = true;
-
                 if (
                     _duosFinalBoardTracker.Update(
                         source,
@@ -829,9 +803,68 @@ namespace FinalStatsPlugin
                     _finalBoardNeedsRefresh = true;
                 }
 
+                CaptureFinalMatchHeaderData();
+
+                List<Entity> entities;
+                string boardSource;
+
+                if (
+                    _duosFinalBoardTracker.IsDuosMatch
+                    && _duosFinalBoardTracker.HasLocalBoardSnapshot
+                )
+                {
+                    entities = _duosFinalBoardTracker
+                        .LocalBoardSnapshot
+                        .Select(entity => entity.Clone())
+                        .ToList();
+                    boardSource = "duos-recruitment-snapshot";
+                }
+                else
+                {
+                    int controllerId =
+                        _duosFinalBoardTracker.IsDuosMatch
+                        && _duosFinalBoardTracker.LocalPlayerId > 0
+                            ? _duosFinalBoardTracker.LocalPlayerId
+                            : Core.Game.Player.Id;
+
+                    entities = Core.Game.Entities.Values
+                        .Where(
+                            entity =>
+                                entity != null
+                                && entity.IsMinion
+                                && entity.IsInPlay
+                                && entity.IsControlledBy(
+                                    controllerId
+                                )
+                        )
+                        .OrderBy(
+                            entity =>
+                                entity.GetTag(
+                                    GameTag.ZONE_POSITION
+                                )
+                        )
+                        .Select(entity => entity.Clone())
+                        .ToList();
+
+                    boardSource =
+                        _duosFinalBoardTracker.IsDuosMatch
+                            ? "duos-stable-controller"
+                            : "live-controller";
+                }
+
+                _finalBoardSnapshot.Clear();
+                _finalBoardSnapshot.AddRange(entities);
+                _hasFinalBoardSnapshot = true;
+                _finalBoardNeedsRefresh = true;
+
                 WriteDiagnostic(
                     "FINAL BOARD SNAPSHOT"
                     + " | source=" + source
+                    + " | boardSource=" + boardSource
+                    + " | localPlayerId="
+                    + _duosFinalBoardTracker.LocalPlayerId
+                    + " | livePlayerId="
+                    + Core.Game.Player.Id
                     + " | minions=" + entities.Count
                     + " | partnerMinions="
                     + _duosFinalBoardTracker
@@ -915,7 +948,11 @@ namespace FinalStatsPlugin
                     );
                 }
 
-                int playerId = Core.Game.Player.Id;
+                int playerId =
+                    _duosFinalBoardTracker.IsDuosMatch
+                    && _duosFinalBoardTracker.LocalPlayerId > 0
+                        ? _duosFinalBoardTracker.LocalPlayerId
+                        : Core.Game.Player.Id;
                 Entity hero = Core.Game.Entities.Values
                     .FirstOrDefault(
                         entity =>
