@@ -196,6 +196,19 @@ namespace FinalStatsPlugin
                 );
             }
 
+            // Combat entities can be damaged, destroyed or temporarily
+            // replaced. They are not a safe source for the final intact
+            // teammate board. Normal tracking only snapshots recruitment
+            // phases. A forced capture is reserved for the same precise
+            // tavern-to-combat boundary already used by the local board.
+            if (
+                !forceSnapshot
+                && Core.Game.IsBattlegroundsCombatPhase
+            )
+            {
+                return changed;
+            }
+
             DateTime now = DateTime.UtcNow;
             if (!forceSnapshot && now < _nextSnapshotUtc)
                 return changed;
@@ -223,8 +236,8 @@ namespace FinalStatsPlugin
                     .ToList();
 
             // A teammate board can disappear temporarily while HDT/Hearthstone
-            // replaces combat entities. Never erase the last known valid board
-            // just because the current tick exposes no teammate minions.
+            // replaces entities. Never erase the last known valid board just
+            // because the current tick exposes no teammate minions.
             if (currentBoard.Count == 0)
             {
                 if (
