@@ -1,5 +1,6 @@
 using HearthDb.Enums;
 using Hearthstone_Deck_Tracker.API;
+using Hearthstone_Deck_Tracker.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using System;
 using System.Collections.Generic;
@@ -10,10 +11,10 @@ using System.Text.RegularExpressions;
 namespace FinalStatsPlugin
 {
     /// <summary>
-    /// Tracks Duos identity and preserves the last valid board observed for
-    /// the local player's teammate. This class intentionally tracks the real
-    /// data independently from presentation settings so future HDT options can
-    /// hide Duo UI without destroying the captured teammate state.
+    /// Tracks the stable local/teammate identities in Duos and preserves the
+    /// last valid recruitment boards for both players. Duos combat can remap
+    /// the friendly controller to whichever teammate fights first, so final
+    /// board capture must not rely on the live combat controller alone.
     /// </summary>
     internal sealed class DuosFinalBoardTracker
     {
@@ -21,7 +22,7 @@ namespace FinalStatsPlugin
             "UNKNOWN HUMAN PLAYER";
 
         private static readonly TimeSpan SnapshotInterval =
-            TimeSpan.FromMilliseconds(500);
+            TimeSpan.FromMilliseconds(250);
 
         private static readonly Regex PlayerLineRegex = new Regex(
             @"PlayerID=(?<id>\d+), PlayerName=(?<name>.+?)\s*$",
@@ -31,10 +32,13 @@ namespace FinalStatsPlugin
         private readonly Action<string> _log;
         private readonly Dictionary<int, string> _namesByPlayerId =
             new Dictionary<int, string>();
+        private readonly List<Entity> _localBoardSnapshot =
+            new List<Entity>();
         private readonly List<Entity> _partnerBoardSnapshot =
             new List<Entity>();
 
         private DateTime _nextSnapshotUtc = DateTime.MinValue;
+        private int _localPlayerId;
         private int _partnerPlayerId;
         private string _partnerName;
         private bool _isDuosMatch;
@@ -46,12 +50,20 @@ namespace FinalStatsPlugin
 
         public bool IsDuosMatch => _isDuosMatch;
 
+        public int LocalPlayerId => _localPlayerId;
+
         public int PartnerPlayerId => _partnerPlayerId;
 
         public string PartnerName => _partnerName;
 
+        public IReadOnlyList<Entity> LocalBoardSnapshot =>
+            _localBoardSnapshot;
+
         public IReadOnlyList<Entity> PartnerBoardSnapshot =>
             _partnerBoardSnapshot;
+
+        public bool HasLocalBoardSnapshot =>
+            _localBoardSnapshot.Count > 0;
 
         public bool HasPartnerBoardSnapshot =>
             _partnerBoardSnapshot.Count > 0;
@@ -59,8 +71,10 @@ namespace FinalStatsPlugin
         public void Reset()
         {
             _namesByPlayerId.Clear();
+            _localBoardSnapshot.Clear();
             _partnerBoardSnapshot.Clear();
             _nextSnapshotUtc = DateTime.MinValue;
+            _localPlayerId = 0;
             _partnerPlayerId = 0;
             _partnerName = null;
             _isDuosMatch = false;
@@ -71,15 +85,15 @@ namespace FinalStatsPlugin
             Reset();
             _isDuosMatch = Core.Game.IsBattlegroundsDuosMatch;
 
-            if (_isDuosMatch)
-            {
-                Log(
-                    "DUOS FINAL BOARD TRACKING"
-                    + " | enabled=true"
-                );
+            if (!_isDuosMatch)
+                return;
 
-                Update("match-start", true);
-            }
+            Log(
+                "DUOS FINAL BOARD TRACKING"
+                + " | enabled=true"
+            );
+
+            Update("match-start", true);
         }
 
         public bool ProcessPowerLogLine(string line)
@@ -130,6 +144,7 @@ namespace FinalStatsPlugin
                 _partnerName = name;
                 Log(
                     "DUOS PARTNER NAME"
+                    + " | source=powerlog"
                     + " | available=true"
                 );
                 return true;
@@ -139,9 +154,8 @@ namespace FinalStatsPlugin
         }
 
         /// <summary>
-        /// Resolves the teammate and refreshes the last valid board snapshot.
-        /// Returns true when data relevant to the final Duo presentation may
-        /// have changed.
+        /// Resolves stable Duos identities and updates the last valid board
+        /// snapshots. Returns true when final-board presentation data changed.
         /// </summary>
         public bool Update(
             string source,
@@ -153,129 +167,92 @@ namespace FinalStatsPlugin
                 return false;
 
             bool changed = false;
-            int resolvedPartnerPlayerId =
-                ResolvePartnerPlayerId();
 
+            int resolvedLocalPlayerId = ResolveLocalPlayerId();
             if (
-                resolvedPartnerPlayerId > 0
-                && resolvedPartnerPlayerId
-                    != _partnerPlayerId
+                resolvedLocalPlayerId > 0
+                && resolvedLocalPlayerId != _localPlayerId
             )
             {
-                _partnerPlayerId = resolvedPartnerPlayerId;
+                _localPlayerId = resolvedLocalPlayerId;
                 changed = true;
 
                 Log(
-                    "DUOS PARTNER RESOLVED"
-                    + " | playerId=" + _partnerPlayerId
+                    "DUOS LOCAL PLAYER RESOLVED"
+                    + " | playerId=" + _localPlayerId
+                    + " | primaryPlayerId="
+                    + Core.Game.PrimaryPlayerId
                 );
             }
 
-            if (_partnerPlayerId <= 0)
-                return changed;
-
-            if (
-                _namesByPlayerId.TryGetValue(
-                    _partnerPlayerId,
-                    out string resolvedName
-                )
-                && IsUsablePlayerName(resolvedName)
-                && !string.Equals(
-                    _partnerName,
-                    resolvedName,
-                    StringComparison.Ordinal
-                )
-            )
+            if (_localPlayerId > 0)
             {
-                _partnerName = resolvedName;
-                changed = true;
+                int resolvedPartnerPlayerId =
+                    ResolvePartnerPlayerId(_localPlayerId);
 
-                Log(
-                    "DUOS PARTNER NAME"
-                    + " | available=true"
-                );
-            }
-
-            // Combat entities can be damaged, destroyed or temporarily
-            // replaced. They are not a safe source for the final intact
-            // teammate board. Normal tracking only snapshots recruitment
-            // phases. The only combat-phase forced capture accepted here is
-            // the tavern-to-combat boundary, matching the local-board logic.
-            bool safeCombatBoundaryCapture =
-                forceSnapshot
-                && string.Equals(
-                    source,
-                    "tavern-to-combat",
-                    StringComparison.Ordinal
-                );
-
-            if (
-                Core.Game.IsBattlegroundsCombatPhase
-                && !safeCombatBoundaryCapture
-            )
-            {
-                return changed;
-            }
-
-            DateTime now = DateTime.UtcNow;
-            if (!forceSnapshot && now < _nextSnapshotUtc)
-                return changed;
-
-            _nextSnapshotUtc = now.Add(SnapshotInterval);
-
-            List<Entity> currentBoard =
-                Core.Game.Entities.Values
-                    .Where(
-                        entity =>
-                            entity != null
-                            && entity.IsMinion
-                            && entity.IsInPlay
-                            && entity.IsControlledBy(
-                                _partnerPlayerId
-                            )
-                    )
-                    .OrderBy(
-                        entity =>
-                            entity.GetTag(
-                                GameTag.ZONE_POSITION
-                            )
-                    )
-                    .Select(entity => entity.Clone())
-                    .ToList();
-
-            // A teammate board can disappear temporarily while HDT/Hearthstone
-            // replaces entities. Never erase the last known valid board just
-            // because the current tick exposes no teammate minions.
-            if (currentBoard.Count == 0)
-            {
                 if (
-                    forceSnapshot
-                    && _partnerBoardSnapshot.Count > 0
+                    resolvedPartnerPlayerId > 0
+                    && resolvedPartnerPlayerId
+                        != _partnerPlayerId
                 )
                 {
+                    _partnerPlayerId = resolvedPartnerPlayerId;
+                    changed = true;
+
                     Log(
-                        "DUOS PARTNER BOARD RETAINED"
-                        + " | source=" + source
-                        + " | minions="
-                        + _partnerBoardSnapshot.Count
+                        "DUOS PARTNER RESOLVED"
+                        + " | localPlayerId=" + _localPlayerId
+                        + " | partnerPlayerId="
+                        + _partnerPlayerId
                     );
+                }
+            }
+
+            if (TryResolvePartnerName())
+                changed = true;
+
+            DateTime now = DateTime.UtcNow;
+
+            if (!Core.Game.IsBattlegroundsCombatPhase)
+            {
+                if (!forceSnapshot && now < _nextSnapshotUtc)
+                    return changed;
+
+                _nextSnapshotUtc = now.Add(SnapshotInterval);
+
+                if (
+                    UpdateRecruitmentBoard(
+                        _localPlayerId,
+                        _localBoardSnapshot,
+                        "local",
+                        source
+                    )
+                )
+                {
+                    changed = true;
+                }
+
+                if (
+                    UpdateRecruitmentBoard(
+                        _partnerPlayerId,
+                        _partnerBoardSnapshot,
+                        "partner",
+                        source
+                    )
+                )
+                {
+                    changed = true;
                 }
 
                 return changed;
             }
 
-            if (!HaveSameBoard(_partnerBoardSnapshot, currentBoard))
-            {
-                _partnerBoardSnapshot.Clear();
-                _partnerBoardSnapshot.AddRange(currentBoard);
+            // During combat Hearthstone can present either teammate through
+            // the friendly controller. Only use that combat representation as
+            // a fallback when we have no recruitment snapshot for that player,
+            // and only while the visible board is still undamaged.
+            if (TryCaptureMissingCombatBoard(source))
                 changed = true;
-
-                Log(
-                    "DUOS PARTNER BOARD SNAPSHOT"
-                    + " | source=" + source
-                    + " | minions=" + currentBoard.Count
-                );
-            }
 
             return changed;
         }
@@ -295,10 +272,30 @@ namespace FinalStatsPlugin
             }
         }
 
-        private static int ResolvePartnerPlayerId()
+        private int ResolveLocalPlayerId()
         {
-            int playerId = Core.Game.Player?.Id ?? 0;
-            if (playerId <= 0)
+            if (_localPlayerId > 0)
+                return _localPlayerId;
+
+            // HDT stores the primary local player ID at the beginning of each
+            // Battlegrounds shopping phase. Unlike the visible combat board,
+            // this value is not tied to which Duos teammate fights first.
+            int primaryPlayerId = Core.Game.PrimaryPlayerId;
+            if (primaryPlayerId > 0)
+                return primaryPlayerId;
+
+            // Before HDT has populated PrimaryPlayerId, the normal Player ID is
+            // still a safe fallback only during recruitment.
+            if (!Core.Game.IsBattlegroundsCombatPhase)
+                return Core.Game.Player?.Id ?? 0;
+
+            return 0;
+        }
+
+        private static int ResolvePartnerPlayerId(
+            int localPlayerId)
+        {
+            if (localPlayerId <= 0)
                 return 0;
 
             List<Entity> entities =
@@ -308,15 +305,273 @@ namespace FinalStatsPlugin
 
             Entity hero = FindAuthoritativeHero(
                 entities,
-                playerId
+                localPlayerId
             );
 
             return ResolveTaggedPlayerId(
                 hero,
                 entities,
-                playerId,
+                localPlayerId,
                 GameTag.BACON_DUO_TEAMMATE_PLAYER_ID
             );
+        }
+
+        private bool TryResolvePartnerName()
+        {
+            if (_partnerPlayerId <= 0)
+                return false;
+
+            string resolvedName = null;
+            string source = null;
+
+            if (
+                _namesByPlayerId.TryGetValue(
+                    _partnerPlayerId,
+                    out string powerLogName
+                )
+                && IsUsablePlayerName(powerLogName)
+            )
+            {
+                resolvedName = powerLogName;
+                source = "powerlog";
+            }
+
+            if (string.IsNullOrWhiteSpace(resolvedName))
+            {
+                resolvedName = ResolvePartnerNameFromLobbyInfo(
+                    _partnerPlayerId
+                );
+                source = "lobbyInfo";
+            }
+
+            if (
+                !IsUsablePlayerName(resolvedName)
+                || string.Equals(
+                    _partnerName,
+                    resolvedName,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                return false;
+            }
+
+            _partnerName = resolvedName;
+
+            Log(
+                "DUOS PARTNER NAME"
+                + " | source=" + source
+                + " | available=true"
+            );
+
+            return true;
+        }
+
+        private static string ResolvePartnerNameFromLobbyInfo(
+            int partnerPlayerId)
+        {
+            try
+            {
+                var lobbyPlayers =
+                    Core.Game.MetaData
+                        ?.BattlegroundsLobbyInfo
+                        ?.Players;
+
+                if (lobbyPlayers == null)
+                    return null;
+
+                Entity partnerHero = FindAuthoritativeHero(
+                    Core.Game.Entities.Values,
+                    partnerPlayerId
+                );
+
+                string partnerHeroCardId =
+                    NormalizeHeroCardId(
+                        partnerHero?.CardId
+                    );
+
+                if (string.IsNullOrWhiteSpace(partnerHeroCardId))
+                    return null;
+
+                foreach (var info in lobbyPlayers)
+                {
+                    if (info == null)
+                        continue;
+
+                    string infoHeroCardId =
+                        NormalizeHeroCardId(
+                            info.HeroCardId
+                        );
+
+                    if (
+                        !string.Equals(
+                            infoHeroCardId,
+                            partnerHeroCardId,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    {
+                        continue;
+                    }
+
+                    string name = StripBattleTag(info.Name);
+                    if (IsUsablePlayerName(name))
+                        return name;
+                }
+            }
+            catch
+            {
+                // Power.log remains the fallback when lobby metadata is not
+                // available yet or HDT remote hero data is still loading.
+            }
+
+            return null;
+        }
+
+        private bool UpdateRecruitmentBoard(
+            int playerId,
+            List<Entity> destination,
+            string role,
+            string source)
+        {
+            if (playerId <= 0)
+                return false;
+
+            List<Entity> board = CollectBoardForController(playerId);
+
+            // In Duos, the teammate board may simply not be present in the
+            // normal entity collection during recruitment. Do not interpret an
+            // unavailable empty result as a real empty final board and erase a
+            // previously valid snapshot.
+            if (board.Count == 0)
+                return false;
+
+            if (HaveSameBoard(destination, board))
+                return false;
+
+            destination.Clear();
+            destination.AddRange(board);
+
+            Log(
+                "DUOS BOARD SNAPSHOT"
+                + " | role=" + role
+                + " | source=" + source
+                + " | playerId=" + playerId
+                + " | minions=" + board.Count
+            );
+
+            return true;
+        }
+
+        private bool TryCaptureMissingCombatBoard(string source)
+        {
+            int activePlayerId = ResolveActiveFriendlyPlayerId();
+            if (activePlayerId <= 0)
+                return false;
+
+            List<Entity> destination;
+            string role;
+
+            if (
+                activePlayerId == _localPlayerId
+                && _localBoardSnapshot.Count == 0
+            )
+            {
+                destination = _localBoardSnapshot;
+                role = "local";
+            }
+            else if (
+                activePlayerId == _partnerPlayerId
+                && _partnerBoardSnapshot.Count == 0
+            )
+            {
+                destination = _partnerBoardSnapshot;
+                role = "partner";
+            }
+            else
+            {
+                return false;
+            }
+
+            int friendlyControllerId = Core.Game.Player?.Id ?? 0;
+            if (friendlyControllerId <= 0)
+                return false;
+
+            List<Entity> board =
+                CollectBoardForController(friendlyControllerId);
+
+            if (
+                board.Count == 0
+                || board.Any(
+                    entity =>
+                        entity.GetTag(GameTag.DAMAGE) > 0
+                )
+            )
+            {
+                return false;
+            }
+
+            destination.Clear();
+            destination.AddRange(board);
+
+            Log(
+                "DUOS COMBAT BOARD FALLBACK"
+                + " | role=" + role
+                + " | source=" + source
+                + " | activePlayerId=" + activePlayerId
+                + " | controller=" + friendlyControllerId
+                + " | minions=" + board.Count
+            );
+
+            return true;
+        }
+
+        private static int ResolveActiveFriendlyPlayerId()
+        {
+            Entity playerEntity = Core.Game.PlayerEntity;
+            int activeHeroEntityId =
+                playerEntity?.GetTag(
+                    GameTag.HERO_ENTITY
+                ) ?? 0;
+
+            if (
+                activeHeroEntityId <= 0
+                || !Core.Game.Entities.TryGetValue(
+                    activeHeroEntityId,
+                    out Entity activeHero
+                )
+                || activeHero == null
+                || !activeHero.HasTag(GameTag.PLAYER_ID)
+            )
+            {
+                return 0;
+            }
+
+            return activeHero.GetTag(GameTag.PLAYER_ID);
+        }
+
+        private static List<Entity> CollectBoardForController(
+            int controllerId)
+        {
+            if (controllerId <= 0)
+                return new List<Entity>();
+
+            return Core.Game.Entities.Values
+                .Where(
+                    entity =>
+                        entity != null
+                        && entity.IsMinion
+                        && entity.IsInPlay
+                        && entity.IsControlledBy(controllerId)
+                )
+                .OrderBy(
+                    entity =>
+                        entity.GetTag(
+                            GameTag.ZONE_POSITION
+                        )
+                )
+                .Select(entity => entity.Clone())
+                .ToList();
         }
 
         private static int ResolveTaggedPlayerId(
@@ -350,7 +605,7 @@ namespace FinalStatsPlugin
             IEnumerable<Entity> entities,
             int playerId)
         {
-            if (playerId <= 0)
+            if (playerId <= 0 || entities == null)
                 return null;
 
             List<Entity> candidates = entities
@@ -429,6 +684,32 @@ namespace FinalStatsPlugin
                 )
                 ? entity.Info.LatestCardId
                 : entity.CardId ?? string.Empty;
+        }
+
+        private static string NormalizeHeroCardId(string cardId)
+        {
+            if (string.IsNullOrWhiteSpace(cardId))
+                return null;
+
+            try
+            {
+                cardId =
+                    BattlegroundsUtils.GetOriginalHeroId(cardId)
+                    ?? cardId;
+            }
+            catch
+            {
+                // HDT remote data may not be ready yet.
+            }
+
+            int skinIndex = cardId.IndexOf(
+                "_SKIN_",
+                StringComparison.OrdinalIgnoreCase
+            );
+
+            return skinIndex > 0
+                ? cardId.Substring(0, skinIndex)
+                : cardId;
         }
 
         private static string StripBattleTag(string name)
