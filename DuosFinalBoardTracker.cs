@@ -199,11 +199,19 @@ namespace FinalStatsPlugin
             // Combat entities can be damaged, destroyed or temporarily
             // replaced. They are not a safe source for the final intact
             // teammate board. Normal tracking only snapshots recruitment
-            // phases. A forced capture is reserved for the same precise
-            // tavern-to-combat boundary already used by the local board.
+            // phases. The only combat-phase forced capture accepted here is
+            // the tavern-to-combat boundary, matching the local-board logic.
+            bool safeCombatBoundaryCapture =
+                forceSnapshot
+                && string.Equals(
+                    source,
+                    "tavern-to-combat",
+                    StringComparison.Ordinal
+                );
+
             if (
-                !forceSnapshot
-                && Core.Game.IsBattlegroundsCombatPhase
+                Core.Game.IsBattlegroundsCombatPhase
+                && !safeCombatBoundaryCapture
             )
             {
                 return changed;
