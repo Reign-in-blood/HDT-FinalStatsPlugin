@@ -18,14 +18,23 @@ namespace FinalStatsPlugin
     {
         private const double PanelWidth = 920;
         private const double PanelHeight = 410;
+        private const double DuoExtraHeight = 180;
         private const double PanelTop = 85;
         private const double PanelLeft = 307;
         private const double MinionSize = 134; //Taille des Minions
         private const string PluginDisplayName =
             "Battlegrounds Final Stats";
 
+        private static readonly Brush DuoPanelBrush =
+            CreateFrozenBrush(Color.FromRgb(0, 0, 0));
+
         private Border _panel;
+        private Brush _soloPanelBackground;
         private StackPanel _board;
+        private RowDefinition _partnerRow;
+        private Grid _partnerArea;
+        private StackPanel _partnerBoard;
+        private TextBlock _partnerNameValue;
         private CardImage _heroPortrait;
         private Border _heroPowerContainer;
         private HeroPower _heroPower;
@@ -88,13 +97,22 @@ namespace FinalStatsPlugin
             root.RowDefinitions.Add(
                 new RowDefinition
                 {
-                    Height = new GridLength(1, GridUnitType.Star)
+                    Height = new GridLength(
+                        PanelHeight - 204 - 58
+                    )
                 }
             );
+
+            _partnerRow = new RowDefinition
+            {
+                Height = new GridLength(0)
+            };
+            root.RowDefinitions.Add(_partnerRow);
 
             Grid header = CreateHeader();
             FrameworkElement heroDetails = CreateHeroDetails();
             FrameworkElement boardArea = CreateBoardArea();
+            _partnerArea = CreatePartnerArea();
             Border headerBar = new Border
             {
                 Padding = new Thickness(16, 4, 16, 4),
@@ -106,18 +124,23 @@ namespace FinalStatsPlugin
             Grid.SetRow(heroDetails, 0);
             Grid.SetRow(headerBar, 1);
             Grid.SetRow(boardArea, 2);
+            Grid.SetRow(_partnerArea, 3);
             Panel.SetZIndex(headerBar, 0);
             Panel.SetZIndex(boardArea, 5);
             Panel.SetZIndex(heroDetails, 10);
+            Panel.SetZIndex(_partnerArea, 5);
             root.Children.Add(heroDetails);
             root.Children.Add(headerBar);
             root.Children.Add(boardArea);
+            root.Children.Add(_partnerArea);
+
+            _soloPanelBackground = CreatePanelBackground();
 
             _panel = new Border
             {
                 Width = PanelWidth,
                 Height = PanelHeight,
-                Background = CreatePanelBackground(),
+                Background = _soloPanelBackground,
                 BorderBrush = CreateFrozenBrush(
                     Color.FromArgb(70, 255, 255, 255)
                 ),
@@ -141,7 +164,12 @@ namespace FinalStatsPlugin
                 Core.OverlayCanvas.Children.Remove(_panel);
 
             _panel = null;
+            _soloPanelBackground = null;
             _board = null;
+            _partnerRow = null;
+            _partnerArea = null;
+            _partnerBoard = null;
+            _partnerNameValue = null;
             _heroPortrait = null;
             _heroPowerContainer = null;
             _heroPower = null;
@@ -173,12 +201,14 @@ namespace FinalStatsPlugin
             FinalBoardSummaryData data)
         {
             EnsureCreated();
+            UpdateDuosPresentation(data);
             UpdateHeader(data);
             UpdateFooter(data);
             UpdateHeroPortrait(data);
             UpdateHeroPower(data);
             UpdateTrinkets(data);
             UpdateAnomaly(data);
+            UpdatePartnerBoard(data);
             _board.Children.Clear();
 
             if (entities == null || entities.Count == 0)
@@ -474,6 +504,161 @@ namespace FinalStatsPlugin
             return boardArea;
         }
 
+        private Grid CreatePartnerArea()
+        {
+            Grid area = new Grid
+            {
+                Visibility = Visibility.Collapsed,
+                ClipToBounds = false,
+                IsHitTestVisible = false
+            };
+
+            area.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = new GridLength(30)
+                }
+            );
+            area.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
+                }
+            );
+
+            _partnerNameValue = new TextBlock
+            {
+                Text = "Partner : —",
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = CreateFrozenBrush(
+                    Color.FromRgb(178, 184, 191)
+                ),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(20, 2, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 440,
+                IsHitTestVisible = false
+            };
+
+            _partnerBoard = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransform = new TranslateTransform(0, -3),
+                IsHitTestVisible = false
+            };
+
+            Grid.SetRow(_partnerNameValue, 0);
+            Grid.SetRow(_partnerBoard, 1);
+            area.Children.Add(_partnerNameValue);
+            area.Children.Add(_partnerBoard);
+            return area;
+        }
+
+        private void UpdateDuosPresentation(
+            FinalBoardSummaryData data)
+        {
+            bool isDuos = data?.IsDuosMatch == true;
+
+            _panel.Height = PanelHeight
+                + (isDuos ? DuoExtraHeight : 0);
+            _partnerRow.Height = new GridLength(
+                isDuos ? DuoExtraHeight : 0
+            );
+            _partnerArea.Visibility =
+                isDuos
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            _panel.Background =
+                isDuos
+                    ? DuoPanelBrush
+                    : _soloPanelBackground;
+        }
+
+        private void UpdatePartnerBoard(
+            FinalBoardSummaryData data)
+        {
+            if (
+                _partnerBoard == null
+                || _partnerNameValue == null
+            )
+            {
+                return;
+            }
+
+            _partnerBoard.Children.Clear();
+
+            if (data?.IsDuosMatch != true)
+                return;
+
+            _partnerNameValue.Text =
+                "Partner : "
+                + (
+                    string.IsNullOrWhiteSpace(
+                        data.PartnerName
+                    )
+                        ? "—"
+                        : RemoveBattleTagCode(
+                            data.PartnerName
+                        )
+                );
+
+            IReadOnlyList<Entity> partnerEntities =
+                data.PartnerBoardEntities;
+
+            if (
+                partnerEntities == null
+                || partnerEntities.Count == 0
+            )
+            {
+                _partnerBoard.Children.Add(
+                    new TextBlock
+                    {
+                        Text = "Partner board unavailable",
+                        FontFamily = new FontFamily("Segoe UI"),
+                        FontSize = 14,
+                        Foreground = CreateFrozenBrush(
+                            Color.FromArgb(
+                                170,
+                                255,
+                                255,
+                                255
+                            )
+                        ),
+                        HorizontalAlignment =
+                            HorizontalAlignment.Center,
+                        VerticalAlignment =
+                            VerticalAlignment.Center,
+                        IsHitTestVisible = false
+                    }
+                );
+                return;
+            }
+
+            foreach (Entity entity in partnerEntities)
+            {
+                if (entity == null)
+                    continue;
+
+                _partnerBoard.Children.Add(
+                    new BattlegroundsMinion(entity)
+                    {
+                        Width = MinionSize,
+                        Height = MinionSize,
+                        Margin = new Thickness(-5, 0, -5, 0),
+                        IsHitTestVisible = false
+                    }
+                );
+            }
+        }
+
         private static void AddHeaderColumn(
             Grid header,
             double width)
@@ -743,10 +928,23 @@ namespace FinalStatsPlugin
                 _panel.Visibility = Visibility.Visible;
                 _panel.UpdateLayout();
 
+                double renderHeight =
+                    _panel.ActualHeight > 0
+                        ? _panel.ActualHeight
+                        : _panel.Height;
+
+                if (
+                    double.IsNaN(renderHeight)
+                    || renderHeight <= 0
+                )
+                {
+                    renderHeight = PanelHeight;
+                }
+
                 RenderTargetBitmap bitmap =
                     new RenderTargetBitmap(
                         (int)PanelWidth,
-                        (int)PanelHeight,
+                        (int)Math.Ceiling(renderHeight),
                         96,
                         96,
                         PixelFormats.Pbgra32
@@ -769,7 +967,7 @@ namespace FinalStatsPlugin
                             0,
                             0,
                             PanelWidth,
-                            PanelHeight
+                            renderHeight
                         )
                     );
                 }
@@ -969,7 +1167,9 @@ namespace FinalStatsPlugin
                         ?.Asset
                     != null
                     ? "ready"
-                    : "missing");
+                    : "missing")
+                + ",partnerBoard="
+                + (_partnerBoard?.Children.Count ?? 0);
         }
 
         private void ShowAnomalyVisual(
@@ -1291,5 +1491,9 @@ namespace FinalStatsPlugin
         public int HighestCreatureAttack { get; set; }
         public int HighestCreatureHealth { get; set; }
         public TimeSpan Duration { get; set; }
+        public bool IsDuosMatch { get; set; }
+        public string PartnerName { get; set; }
+        public IReadOnlyList<Entity> PartnerBoardEntities
+        { get; set; }
     }
 }
