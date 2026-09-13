@@ -82,19 +82,19 @@ namespace FinalStatsPlugin
             }
         }
 
-        public void ProcessPowerLogLine(string line)
+        public bool ProcessPowerLogLine(string line)
         {
             if (string.IsNullOrWhiteSpace(line))
-                return;
+                return false;
 
             EnsureDuosMode();
 
             if (!_isDuosMatch)
-                return;
+                return false;
 
             Match match = PlayerLineRegex.Match(line);
             if (!match.Success)
-                return;
+                return false;
 
             if (
                 !int.TryParse(
@@ -106,7 +106,7 @@ namespace FinalStatsPlugin
                 || playerId <= 0
             )
             {
-                return;
+                return false;
             }
 
             string name = StripBattleTag(
@@ -114,7 +114,7 @@ namespace FinalStatsPlugin
             );
 
             if (!IsUsablePlayerName(name))
-                return;
+                return false;
 
             _namesByPlayerId[playerId] = name;
 
@@ -132,7 +132,10 @@ namespace FinalStatsPlugin
                     "DUOS PARTNER NAME"
                     + " | available=true"
                 );
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
