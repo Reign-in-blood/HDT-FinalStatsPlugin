@@ -1,4 +1,5 @@
 using HearthDb.Enums;
+using HearthMirror.Objects;
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
@@ -22,7 +23,7 @@ namespace FinalStatsPlugin
             "UNKNOWN HUMAN PLAYER";
 
         private static readonly TimeSpan SnapshotInterval =
-            TimeSpan.FromMilliseconds(250);
+            TimeSpan.FromMilliseconds(100);
 
         private static readonly Regex PlayerLineRegex = new Regex(
             @"PlayerID=(?<id>\d+), PlayerName=(?<name>.+?)\s*$",
@@ -41,6 +42,7 @@ namespace FinalStatsPlugin
         private int _localPlayerId;
         private int _partnerPlayerId;
         private string _partnerName;
+        private string _lastTeammateStateDiagnostic;
         private bool _isDuosMatch;
 
         public DuosFinalBoardTracker(Action<string> log)
@@ -77,6 +79,7 @@ namespace FinalStatsPlugin
             _localPlayerId = 0;
             _partnerPlayerId = 0;
             _partnerName = null;
+            _lastTeammateStateDiagnostic = null;
             _isDuosMatch = false;
         }
 
@@ -208,6 +211,9 @@ namespace FinalStatsPlugin
                 }
             }
 
+            if (UpdatePartnerBoardFromTeammateState(source))
+                changed = true;
+
             if (TryResolvePartnerName())
                 changed = true;
 
@@ -232,8 +238,13 @@ namespace FinalStatsPlugin
                     changed = true;
                 }
 
+                // The teammate board is normally exposed by HDT through the
+                // dedicated HearthMirror teammate state above. Keep the normal
+                // entity collection only as a safe fallback when it happens to
+                // contain the partner controller too.
                 if (
-                    UpdateRecruitmentBoard(
+                    !HasPartnerBoardSnapshot
+                    && UpdateRecruitmentBoard(
                         _partnerPlayerId,
                         _partnerBoardSnapshot,
                         "partner",
@@ -391,6 +402,15 @@ namespace FinalStatsPlugin
                     );
 
                 if (string.IsNullOrWhiteSpace(partnerHeroCardId))
+                {
+                    partnerHeroCardId = NormalizeHeroCardId(
+                        ResolvePartnerHeroCardIdFromTeammateState(
+                            partnerPlayerId
+                        )
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(partnerHeroCardId))
                     return null;
 
                 foreach (var info in lobbyPlayers)
@@ -426,6 +446,252 @@ namespace FinalStatsPlugin
             }
 
             return null;
+        }
+
+        private bool UpdatePartnerBoardFromTeammateState(
+            string source)
+        {
+            if (_partnerPlayerId <= 0)
+                return false;
+
+            BattlegroundsDuosBoardState state =
+                Core.Game.BattlegroundsDuosBoardState;
+
+            if (state?.Entities == null || state.Entities.Count == 0)
+            {
+                LogTeammateStateDiagnostic(
+                    state,
+                    0,
+                    source
+                );
+                return false;
+            }
+
+            List<BattlegroundsTeammateBoardStateEntity> rawBoard =
+                state.Entities
+                    .Where(
+                        entity =>
+                            entity != null
+                            && GetTeammateTag(
+                                entity,
+                                GameTag.CONTROLLER
+                            ) == _partnerPlayerId
+                            && GetTeammateTag(
+                                entity,
+                                GameTag.ZONE
+                            ) == (int)Zone.PLAY
+                            && GetTeammateTag(
+                                entity,
+                                GameTag.CARDTYPE
+                            ) == (int)CardType.MINION
+                    )
+                    .OrderBy(
+                        entity =>
+                            GetTeammateTag(
+                                entity,
+                                GameTag.ZONE_POSITION
+                            )
+                    )
+                    .ToList();
+
+            LogTeammateStateDiagnostic(
+                state,
+                rawBoard.Count,
+                source
+            );
+
+            if (rawBoard.Count == 0)
+                return false;
+
+            // Never replace an intact recruitment snapshot with a combat board
+            // after minions have started taking damage.
+            if (
+                rawBoard.Any(
+                    entity =>
+                        GetTeammateTag(
+                            entity,
+                            GameTag.DAMAGE
+                        ) > 0
+                )
+            )
+            {
+                return false;
+            }
+
+            List<Entity> board = rawBoard
+                .Select(ConvertTeammateEntity)
+                .Where(entity => entity != null)
+                .ToList();
+
+            if (board.Count == 0)
+                return false;
+
+            if (HaveSameBoard(_partnerBoardSnapshot, board))
+                return false;
+
+            _partnerBoardSnapshot.Clear();
+            _partnerBoardSnapshot.AddRange(board);
+
+            Log(
+                "DUOS TEAMMATE BOARD SNAPSHOT"
+                + " | source=" + source
+                + " | playerId=" + _partnerPlayerId
+                + " | viewing=" + state.IsViewingTeammate
+                + " | minions=" + board.Count
+            );
+
+            return true;
+        }
+
+        private void LogTeammateStateDiagnostic(
+            BattlegroundsDuosBoardState state,
+            int partnerMinionCount,
+            string source)
+        {
+            string controllers = "none";
+            int entityCount = 0;
+            bool viewing = false;
+
+            if (state?.Entities != null)
+            {
+                entityCount = state.Entities.Count;
+                viewing = state.IsViewingTeammate;
+                controllers = string.Join(
+                    ",",
+                    state.Entities
+                        .Where(entity => entity != null)
+                        .Select(
+                            entity => GetTeammateTag(
+                                entity,
+                                GameTag.CONTROLLER
+                            )
+                        )
+                        .Where(controller => controller > 0)
+                        .Distinct()
+                        .OrderBy(controller => controller)
+                );
+
+                if (string.IsNullOrWhiteSpace(controllers))
+                    controllers = "none";
+            }
+
+            string diagnostic =
+                "DUOS TEAMMATE STATE"
+                + " | viewing=" + viewing
+                + " | entities=" + entityCount
+                + " | partnerPlayerId=" + _partnerPlayerId
+                + " | controllers=" + controllers
+                + " | partnerMinions=" + partnerMinionCount;
+
+            if (
+                string.Equals(
+                    _lastTeammateStateDiagnostic,
+                    diagnostic,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                return;
+            }
+
+            _lastTeammateStateDiagnostic = diagnostic;
+            Log(diagnostic + " | source=" + source);
+        }
+
+        private static string ResolvePartnerHeroCardIdFromTeammateState(
+            int partnerPlayerId)
+        {
+            if (partnerPlayerId <= 0)
+                return null;
+
+            BattlegroundsDuosBoardState state =
+                Core.Game.BattlegroundsDuosBoardState;
+
+            if (state?.Entities == null)
+                return null;
+
+            BattlegroundsTeammateBoardStateEntity hero =
+                state.Entities.FirstOrDefault(
+                    entity =>
+                        entity != null
+                        && GetTeammateTag(
+                            entity,
+                            GameTag.CONTROLLER
+                        ) == partnerPlayerId
+                        && GetTeammateTag(
+                            entity,
+                            GameTag.CARDTYPE
+                        ) == (int)CardType.HERO
+                        && !string.IsNullOrWhiteSpace(
+                            entity.CardId
+                        )
+                );
+
+            return hero?.CardId;
+        }
+
+        private static int GetTeammateTag(
+            BattlegroundsTeammateBoardStateEntity entity,
+            GameTag tag)
+        {
+            if (
+                entity?.Tags == null
+                || !entity.Tags.TryGetValue(
+                    (int)tag,
+                    out int value
+                )
+            )
+            {
+                return 0;
+            }
+
+            return value;
+        }
+
+        private static Entity ConvertTeammateEntity(
+            BattlegroundsTeammateBoardStateEntity source)
+        {
+            if (
+                source == null
+                || string.IsNullOrWhiteSpace(source.CardId)
+            )
+            {
+                return null;
+            }
+
+            int entityId = GetTeammateTag(
+                source,
+                GameTag.ENTITY_ID
+            );
+
+            if (entityId <= 0)
+            {
+                int zonePosition = Math.Max(
+                    0,
+                    GetTeammateTag(
+                        source,
+                        GameTag.ZONE_POSITION
+                    )
+                );
+                entityId = -1000000 - zonePosition;
+            }
+
+            Entity snapshot = new Entity(entityId)
+            {
+                CardId = source.CardId
+            };
+
+            if (source.Tags != null)
+            {
+                foreach (
+                    KeyValuePair<int, int> pair in source.Tags
+                )
+                {
+                    snapshot.Tags[(GameTag)pair.Key] = pair.Value;
+                }
+            }
+
+            return snapshot;
         }
 
         private bool UpdateRecruitmentBoard(

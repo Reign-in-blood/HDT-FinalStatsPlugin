@@ -76,10 +76,20 @@ if not defined HDT_ASSEMBLY (
 
 for %%F in ("%HDT_ASSEMBLY%") do set "HDT_ASSEMBLY_DIR=%%~dpF"
 set "HEARTHDB_ASSEMBLY=%HDT_ASSEMBLY_DIR%HearthDb.dll"
+set "HEARTHMIRROR_ASSEMBLY=%HDT_ASSEMBLY_DIR%HearthMirror.dll"
 
 if not exist "%HEARTHDB_ASSEMBLY%" (
     echo.
     echo ERREUR : HearthDb.dll est introuvable a cote de :
+    echo %HDT_ASSEMBLY%
+    echo.
+    pause
+    exit /b 1
+)
+
+if not exist "%HEARTHMIRROR_ASSEMBLY%" (
+    echo.
+    echo ERREUR : HearthMirror.dll est introuvable a cote de :
     echo %HDT_ASSEMBLY%
     echo.
     pause
@@ -101,6 +111,15 @@ copy /Y "%HEARTHDB_ASSEMBLY%" "%PROJECT_DIR%lib\HearthDb.dll" >nul
 if errorlevel 1 (
     echo.
     echo ERREUR : impossible de copier HearthDb.dll.
+    echo.
+    pause
+    exit /b 1
+)
+
+copy /Y "%HEARTHMIRROR_ASSEMBLY%" "%PROJECT_DIR%lib\HearthMirror.dll" >nul
+if errorlevel 1 (
+    echo.
+    echo ERREUR : impossible de copier HearthMirror.dll.
     echo.
     pause
     exit /b 1

@@ -26,6 +26,11 @@
       <Private>false</Private>
     </Reference>
 
+    <Reference Include="HearthMirror">
+      <HintPath>lib\HearthMirror.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
     <None Remove="Images\FinalBoardBackground.png" />
     <Resource Include="Images\FinalBoardBackground.png" />
   </ItemGroup>
