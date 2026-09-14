@@ -72,7 +72,7 @@ namespace FinalStatsPlugin
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                RenderTransform = new TranslateTransform(0, -20), //hauteur des minions
+                RenderTransform = new TranslateTransform(0, -35), //hauteur des minions
                 IsHitTestVisible = false
             };
 
@@ -80,7 +80,6 @@ namespace FinalStatsPlugin
             {
                 SnapsToDevicePixels = true,
                 UseLayoutRounding = true,
-                RenderTransform = new TranslateTransform(0, -15),
                 IsHitTestVisible = false
             };
             root.RowDefinitions.Add(
@@ -117,7 +116,7 @@ namespace FinalStatsPlugin
             Border headerBar = new Border
             {
                 Padding = new Thickness(16, 4, 16, 4),
-                RenderTransform = new TranslateTransform(0, -30),
+                RenderTransform = new TranslateTransform(0, -45),
                 Child = header,
                 IsHitTestVisible = false
             };
@@ -323,6 +322,7 @@ namespace FinalStatsPlugin
                 Width = 600,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                RenderTransform = new TranslateTransform(0, -15),
                 IsHitTestVisible = false
             };
             details.ColumnDefinitions.Add(
@@ -512,6 +512,7 @@ namespace FinalStatsPlugin
             {
                 Visibility = Visibility.Collapsed,
                 ClipToBounds = false,
+                RenderTransform = new TranslateTransform(0, -15),
                 IsHitTestVisible = false
             };
 
@@ -588,7 +589,7 @@ namespace FinalStatsPlugin
             {
                 _footer.RenderTransform = new TranslateTransform(
                     0,
-                    7 + (isDuos ? DuoExtraHeight - 15 : 0)
+                    7 + (isDuos ? DuoExtraHeight : -15)
                 );
             }
         }
