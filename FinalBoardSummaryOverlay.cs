@@ -31,6 +31,7 @@ namespace FinalStatsPlugin
         private Border _panel;
         private Brush _soloPanelBackground;
         private StackPanel _board;
+        private Grid _footer;
         private RowDefinition _partnerRow;
         private Grid _partnerArea;
         private StackPanel _partnerBoard;
@@ -166,6 +167,7 @@ namespace FinalStatsPlugin
             _panel = null;
             _soloPanelBackground = null;
             _board = null;
+            _footer = null;
             _partnerRow = null;
             _partnerArea = null;
             _partnerBoard = null;
@@ -456,7 +458,7 @@ namespace FinalStatsPlugin
                 }
             );
 
-            Grid footer = new Grid
+            _footer = new Grid
             {
                 RenderTransform = new TranslateTransform(0, 7),
                 IsHitTestVisible = false
@@ -474,7 +476,7 @@ namespace FinalStatsPlugin
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Margin = new Thickness(20, 0, 0, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 300,
+                MaxWidth = 620,
                 IsHitTestVisible = false
             };
 
@@ -493,14 +495,14 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
 
-            footer.Children.Add(_playerNameValue);
-            footer.Children.Add(_pluginNameValue);
+            _footer.Children.Add(_playerNameValue);
+            _footer.Children.Add(_pluginNameValue);
 
             Panel.SetZIndex(_board, 10);
-            Panel.SetZIndex(footer, 20);
+            Panel.SetZIndex(_footer, 20);
 
             boardArea.Children.Add(_board);
-            boardArea.Children.Add(footer);
+            boardArea.Children.Add(_footer);
             return boardArea;
         }
 
@@ -543,6 +545,7 @@ namespace FinalStatsPlugin
                 Margin = new Thickness(20, 2, 0, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 MaxWidth = 440,
+                Visibility = Visibility.Collapsed,
                 IsHitTestVisible = false
             };
 
@@ -551,7 +554,7 @@ namespace FinalStatsPlugin
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                RenderTransform = new TranslateTransform(0, -3),
+                RenderTransform = new TranslateTransform(0, -23),
                 IsHitTestVisible = false
             };
 
@@ -580,35 +583,26 @@ namespace FinalStatsPlugin
                 isDuos
                     ? DuoPanelBrush
                     : _soloPanelBackground;
+
+            if (_footer != null)
+            {
+                _footer.RenderTransform = new TranslateTransform(
+                    0,
+                    7 + (isDuos ? DuoExtraHeight : 0)
+                );
+            }
         }
 
         private void UpdatePartnerBoard(
             FinalBoardSummaryData data)
         {
-            if (
-                _partnerBoard == null
-                || _partnerNameValue == null
-            )
-            {
+            if (_partnerBoard == null)
                 return;
-            }
 
             _partnerBoard.Children.Clear();
 
             if (data?.IsDuosMatch != true)
                 return;
-
-            _partnerNameValue.Text =
-                "Partner : "
-                + (
-                    string.IsNullOrWhiteSpace(
-                        data.PartnerName
-                    )
-                        ? "—"
-                        : RemoveBattleTagCode(
-                            data.PartnerName
-                        )
-                );
 
             IReadOnlyList<Entity> partnerEntities =
                 data.PartnerBoardEntities;
@@ -783,11 +777,34 @@ namespace FinalStatsPlugin
         private void UpdateFooter(FinalBoardSummaryData data)
         {
             string playerName = data?.PlayerName;
-
-            _playerNameValue.Text =
+            string displayPlayerName =
                 string.IsNullOrWhiteSpace(playerName)
                     ? string.Empty
                     : RemoveBattleTagCode(playerName);
+
+            if (data?.IsDuosMatch == true)
+            {
+                string partnerName = data.PartnerName;
+                string displayPartnerName =
+                    string.IsNullOrWhiteSpace(partnerName)
+                        ? "—"
+                        : RemoveBattleTagCode(partnerName);
+
+                _playerNameValue.Text =
+                    "player : "
+                    + (
+                        string.IsNullOrWhiteSpace(displayPlayerName)
+                            ? "—"
+                            : displayPlayerName
+                    )
+                    + " - Partner : "
+                    + displayPartnerName;
+            }
+            else
+            {
+                _playerNameValue.Text = displayPlayerName;
+            }
+
             _pluginNameValue.Text = PluginDisplayName;
         }
 
