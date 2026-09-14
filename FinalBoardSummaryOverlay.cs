@@ -588,7 +588,7 @@ namespace FinalStatsPlugin
             {
                 _footer.RenderTransform = new TranslateTransform(
                     0,
-                    7 + (isDuos ? DuoExtraHeight : 0)
+                    7 + (isDuos ? DuoExtraHeight - 15 : 0)
                 );
             }
         }
