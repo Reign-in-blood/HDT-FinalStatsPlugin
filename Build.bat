@@ -19,6 +19,25 @@ set "LEGACY_OUTPUT_DLL=%OUTPUT_DIR%\FinalStatsPlugin.dll"
 set "RESULT_FILE=%TEMP%\FinalStatsPlugin_HDT_%RANDOM%_%RANDOM%.txt"
 set "ERROR_FILE=%TEMP%\FinalStatsPlugin_HDT_ERROR_%RANDOM%_%RANDOM%.txt"
 
+rem Un chemin explicite passe en argument reste prioritaire.
+if not defined INPUT_PATH (
+    if exist "%LOCALAPPDATA%\HearthstoneDeckTracker" (
+        set "INPUT_PATH=%LOCALAPPDATA%\HearthstoneDeckTracker"
+    )
+)
+
+if not defined INPUT_PATH (
+    if exist "%ProgramFiles%\Hearthstone Deck Tracker" (
+        set "INPUT_PATH=%ProgramFiles%\Hearthstone Deck Tracker"
+    )
+)
+
+if not defined INPUT_PATH (
+    if exist "%ProgramFiles(x86)%\Hearthstone Deck Tracker" (
+        set "INPUT_PATH=%ProgramFiles(x86)%\Hearthstone Deck Tracker"
+    )
+)
+
 if not defined INPUT_PATH (
     echo Indique au choix :
     echo.
