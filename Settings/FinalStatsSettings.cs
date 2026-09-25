@@ -12,7 +12,7 @@ namespace FinalStatsPlugin.Settings
     public sealed class FinalStatsSettings
     {
         public FinalScreenshotPlacementFilter FinalScreenshotOnlyOn
-        { get; set; } = FinalScreenshotPlacementFilter.All;
+        { get; set; } = FinalScreenshotPlacementFilter.Top3;
 
         public int GetFinalScreenshotMaximumPlacement()
         {
