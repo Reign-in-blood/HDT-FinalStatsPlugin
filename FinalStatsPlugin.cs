@@ -1,4 +1,6 @@
-﻿using HearthDb.Enums;
+﻿using FinalStatsPlugin.Settings;
+using FinalStatsPlugin.UI.Settings;
+using HearthDb.Enums;
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Enums.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone;
@@ -32,9 +34,9 @@ namespace FinalStatsPlugin
         public string Description =>
             "Tracks live Battlegrounds match statistics and keeps the final summary visible after the game.";
 
-        public string ButtonText => "Show / hide";
+        public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 56);
+        public Version Version => new Version(0, 1, 57);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -128,6 +130,7 @@ namespace FinalStatsPlugin
 
         private bool _loaded;
         private bool _pluginVisible = true;
+        private FinalStatsSettings _settings;
         private bool _trackingMatch;
         private bool _hasMatchData;
         private bool _gameEndObserved;
@@ -159,8 +162,6 @@ namespace FinalStatsPlugin
         private int? _finalMmrDelta;
         private bool _finalMmrResolved;
         private DateTime _finalMmrLookupDeadlineUtc;
-        // Testing value: use 3 after validating automatic screenshots.
-        private const int FinalBoardScreenshotMaximumPlacement = 8;
         private const int FinalBoardScreenshotMaximumAttempts = 3;
         private static readonly TimeSpan FinalBoardScreenshotDelay =
             TimeSpan.FromSeconds(8);
@@ -285,6 +286,13 @@ namespace FinalStatsPlugin
         public void OnLoad()
         {
             _loaded = true;
+            _settings = SettingsService.Load();
+
+            WriteDiagnostic(
+                "SETTINGS LOADED"
+                + " | finalScreenshotOnlyOn="
+                + _settings.FinalScreenshotOnlyOn
+            );
 
             GameEvents.OnGameStart.Add(HandleGameStart);
             GameEvents.OnGameEnd.Add(HandleGameEnd);
@@ -323,6 +331,7 @@ namespace FinalStatsPlugin
                 }
 
                 _finalBoardSummaryOverlay.Remove();
+                PluginSettingsFlyout.Detach();
 
                 _panel = null;
                 _toggleButton = null;
@@ -355,19 +364,31 @@ namespace FinalStatsPlugin
             });
 
             _duosFinalBoardTracker.Reset();
+            _settings = null;
         }
 
         public void OnButtonPress()
         {
-            _pluginVisible = !_pluginVisible;
-
-            Core.OverlayCanvas.Dispatcher.Invoke(() =>
+            try
             {
-                CreateOverlay();
-                UpdateOverlayVisibility();
-                PositionOverlay();
-                UpdateFinalBoardSummaryOverlay();
-            });
+                Application application = Application.Current;
+                if (application == null)
+                    return;
+
+                application.Dispatcher.Invoke(() =>
+                {
+                    if (_settings == null)
+                        _settings = SettingsService.Load();
+
+                    PluginSettingsFlyout.Show(_settings);
+                });
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnostic(
+                    "SETTINGS OPEN ERROR | " + ex
+                );
+            }
         }
 
         // HDT calls this approximately every 100 ms.
@@ -3858,17 +3879,26 @@ namespace FinalStatsPlugin
                 return;
             }
 
+            int finalScreenshotMaximumPlacement =
+                _settings?.GetFinalScreenshotMaximumPlacement()
+                ?? int.MaxValue;
+
             if (
                 _finalPlacement
-                    > FinalBoardScreenshotMaximumPlacement
+                    > finalScreenshotMaximumPlacement
             )
             {
                 _finalBoardScreenshotCompleted = true;
                 WriteDiagnostic(
                     "FINAL BOARD SCREENSHOT SKIPPED"
                     + " | placement=" + _finalPlacement
+                    + " | filter="
+                    + (_settings?.FinalScreenshotOnlyOn.ToString()
+                        ?? "All")
                     + " | maximum="
-                    + FinalBoardScreenshotMaximumPlacement
+                    + finalScreenshotMaximumPlacement.ToString(
+                        CultureInfo.InvariantCulture
+                    )
                 );
                 return;
             }
