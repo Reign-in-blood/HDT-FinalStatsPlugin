@@ -1,6 +1,7 @@
 using FinalStatsPlugin.Settings;
 using Hearthstone_Deck_Tracker.API;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
@@ -51,6 +52,13 @@ namespace FinalStatsPlugin.UI.Settings
                 ItemsControl flyoutsControl =
                     TryGetHdtFlyoutsControl();
                 flyoutsControl?.Items.Remove(_flyout);
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(
+                    "HDT-FinalStatsPlugin settings flyout detach failed: "
+                    + ex
+                );
             }
             finally
             {
