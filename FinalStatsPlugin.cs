@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 57);
+        public Version Version => new Version(0, 1, 58);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -157,6 +157,7 @@ namespace FinalStatsPlugin
         private readonly List<Entity> _finalTrinketSnapshots =
             new List<Entity>();
         private Card _finalAnomalyCard;
+        private DeitySnapshot _finalDeitySnapshot;
         private Entity _finalAnomalyHeroPowerSnapshot;
         private int _finalPlacement;
         private int? _finalMmrDelta;
@@ -688,6 +689,7 @@ namespace FinalStatsPlugin
             _finalHeroPowerSnapshot = null;
             _finalTrinketSnapshots.Clear();
             _finalAnomalyCard = null;
+            _finalDeitySnapshot = null;
             _finalAnomalyHeroPowerSnapshot = null;
             _finalPlacement = 0;
             _finalMmrDelta = null;
@@ -974,6 +976,10 @@ namespace FinalStatsPlugin
                     && _duosFinalBoardTracker.LocalPlayerId > 0
                         ? _duosFinalBoardTracker.LocalPlayerId
                         : Core.Game.Player.Id;
+
+                if (CaptureFinalDeity(playerId))
+                    changed = true;
+
                 Entity hero = Core.Game.Entities.Values
                     .FirstOrDefault(
                         entity =>
@@ -1152,6 +1158,118 @@ namespace FinalStatsPlugin
                     "FINAL HEADER CAPTURE ERROR | " + ex
                 );
             }
+        }
+
+        private bool CaptureFinalDeity(int playerId)
+        {
+            if (playerId <= 0)
+                return false;
+
+            Entity sigil = Core.Game.Entities.Values
+                .Where(
+                    entity =>
+                        entity != null
+                        && entity.IsControlledBy(playerId)
+                        && string.Equals(
+                            entity.CardId,
+                            HearthDb.CardIds
+                                .NonCollectible
+                                .Neutral
+                                .SecretDeityDnt,
+                            StringComparison.Ordinal
+                        )
+                )
+                .OrderByDescending(entity => entity.Id)
+                .FirstOrDefault();
+
+            if (sigil == null)
+                return false;
+
+            Card deityCard = Core.Game.BattlegroundsPlayerDeity;
+
+            if (deityCard == null)
+            {
+                int deityDbfId = sigil.GetTag(
+                    GameTag.BACON_EVOLUTION_CARD_ID
+                );
+
+                if (deityDbfId > 0)
+                {
+                    deityCard = Database.GetCardFromDbfId(
+                        deityDbfId,
+                        false
+                    );
+                }
+            }
+
+            if (deityCard == null)
+                return false;
+
+            int attack = sigil.GetTag(
+                GameTag.BACON_EVOLUTION_CARD_OVERWRITE_ATK
+            );
+            int health = sigil.GetTag(
+                GameTag.BACON_EVOLUTION_CARD_OVERWRITE_HEALTH
+            );
+
+            // The Deity starts at 1/1 once the sigil is initialized.
+            // Ignore a transient incomplete state rather than replacing a
+            // valid retained final snapshot with 0/0.
+            if (attack <= 0 || health <= 0)
+                return false;
+
+            bool isGolden =
+                Core.Game.Player?.Trinkets?.Any(
+                    trinket =>
+                        trinket != null
+                        && string.Equals(
+                            GetBestCardId(trinket),
+                            HearthDb.CardIds
+                                .NonCollectible
+                                .Neutral
+                                .MaskOfAncientOnes,
+                            StringComparison.Ordinal
+                        )
+                ) == true;
+
+            if (
+                _finalDeitySnapshot != null
+                && string.Equals(
+                    _finalDeitySnapshot.Card?.Id,
+                    deityCard.Id,
+                    StringComparison.Ordinal
+                )
+                && _finalDeitySnapshot.Attack == attack
+                && _finalDeitySnapshot.Health == health
+                && _finalDeitySnapshot.IsGolden == isGolden
+            )
+            {
+                return false;
+            }
+
+            _finalDeitySnapshot = new DeitySnapshot(
+                deityCard,
+                attack,
+                health,
+                isGolden,
+                Core.Game.GetTurnNumber()
+            );
+
+            WriteDiagnostic(
+                "FINAL DEITY"
+                + " | card=" + deityCard.Id
+                + " | attack="
+                + attack.ToString(
+                    CultureInfo.InvariantCulture
+                )
+                + " | health="
+                + health.ToString(
+                    CultureInfo.InvariantCulture
+                )
+                + " | golden=" + isGolden
+            );
+
+            return true;
         }
 
         private static Entity FindCurrentPlayerHeroPower(
@@ -3812,6 +3930,7 @@ namespace FinalStatsPlugin
                                 _finalTrinketSnapshots,
                             AnomalyCard =
                                 _finalAnomalyCard,
+                            Deity = _finalDeitySnapshot,
                             Placement = _finalPlacement,
                             MmrDelta = _finalMmrDelta,
                             Turn = _highestTurn,

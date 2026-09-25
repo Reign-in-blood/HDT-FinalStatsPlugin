@@ -1,5 +1,6 @@
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Controls;
+using Hearthstone_Deck_Tracker.Hearthstone;
 using Hearthstone_Deck_Tracker.Hearthstone.Entities;
 using Hearthstone_Deck_Tracker.Utility.Assets;
 using System;
@@ -41,6 +42,12 @@ namespace FinalStatsPlugin
         private HeroPower _heroPower;
         private int _heroPowerEntityId;
         private string _heroPowerCardId;
+        private Border _deityContainer;
+        private BattlegroundsMinion _deityMinion;
+        private string _deityCardId;
+        private int _deityAttack;
+        private int _deityHealth;
+        private bool _deityIsGolden;
         private StackPanel _trinketPanel;
         private readonly List<Trinket> _trinkets =
             new List<Trinket>();
@@ -176,6 +183,12 @@ namespace FinalStatsPlugin
             _heroPower = null;
             _heroPowerEntityId = 0;
             _heroPowerCardId = null;
+            _deityContainer = null;
+            _deityMinion = null;
+            _deityCardId = null;
+            _deityAttack = 0;
+            _deityHealth = 0;
+            _deityIsGolden = false;
             _trinketPanel = null;
             _trinkets.Clear();
             _anomalySection = null;
@@ -207,6 +220,7 @@ namespace FinalStatsPlugin
             UpdateFooter(data);
             UpdateHeroPortrait(data);
             UpdateHeroPower(data);
+            UpdateDeity(data);
             UpdateTrinkets(data);
             UpdateAnomaly(data);
             UpdatePartnerBoard(data);
@@ -319,7 +333,7 @@ namespace FinalStatsPlugin
         {
             Grid details = new Grid
             {
-                Width = 600,
+                Width = 840,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 RenderTransform = new TranslateTransform(0, -15),
@@ -328,7 +342,7 @@ namespace FinalStatsPlugin
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(200)
+                    Width = new GridLength(320)
                 }
             );
             details.ColumnDefinitions.Add(
@@ -340,7 +354,7 @@ namespace FinalStatsPlugin
             details.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = new GridLength(200)
+                    Width = new GridLength(320)
                 }
             );
 
@@ -392,6 +406,17 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
             rightSection.Children.Add(_heroPowerContainer);
+
+            _deityContainer = new Border
+            {
+                Width = 100,
+                Height = 100,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+            rightSection.Children.Add(_deityContainer);
 
             _anomalySection = new StackPanel
             {
@@ -1045,6 +1070,15 @@ namespace FinalStatsPlugin
                 || heroPowerViewModel?.CardPortrait?.Asset
                     != null;
 
+            bool deityExpected = _deityMinion != null;
+            BattlegroundsMinionViewModel deityViewModel =
+                _deityMinion?.DataContext
+                    as BattlegroundsMinionViewModel;
+            bool deityReady =
+                !deityExpected
+                || deityViewModel?.CardPortrait?.Asset
+                    != null;
+
             bool trinketsReady = true;
 
             foreach (Trinket trinket in _trinkets)
@@ -1076,6 +1110,7 @@ namespace FinalStatsPlugin
 
             return heroPortraitReady
                 && heroPowerReady
+                && deityReady
                 && trinketsReady
                 && anomalyReady;
         }
@@ -1143,6 +1178,9 @@ namespace FinalStatsPlugin
             HeroPowerViewModel anomalyHeroPowerViewModel =
                 _anomalyHeroPower?.DataContext
                     as HeroPowerViewModel;
+            BattlegroundsMinionViewModel deityViewModel =
+                _deityMinion?.DataContext
+                    as BattlegroundsMinionViewModel;
             int readyTrinkets = _trinkets.Count(
                 trinket =>
                     (trinket.DataContext as TrinketViewModel)
@@ -1163,6 +1201,13 @@ namespace FinalStatsPlugin
                     : heroPowerViewModel
                             ?.CardPortrait
                             ?.Asset
+                        != null
+                        ? "ready"
+                        : "missing")
+                + ",deity="
+                + (_deityMinion == null
+                    ? "not-expected"
+                    : deityViewModel?.CardPortrait?.Asset
                         != null
                         ? "ready"
                         : "missing")
@@ -1278,6 +1323,70 @@ namespace FinalStatsPlugin
                 IsHitTestVisible = false
             };
             _heroPowerContainer.Child = _heroPower;
+        }
+
+        private void UpdateDeity(
+            FinalBoardSummaryData data)
+        {
+            DeitySnapshot deity = data?.Deity;
+            string cardId = deity?.Card?.Id ?? string.Empty;
+
+            if (deity == null || deity.Card == null)
+            {
+                _deityContainer.Visibility =
+                    Visibility.Collapsed;
+                _deityContainer.Child = null;
+                _deityMinion = null;
+                _deityCardId = null;
+                _deityAttack = 0;
+                _deityHealth = 0;
+                _deityIsGolden = false;
+                return;
+            }
+
+            _deityContainer.Visibility = Visibility.Visible;
+
+            if (
+                _deityMinion != null
+                && string.Equals(
+                    _deityCardId,
+                    cardId,
+                    StringComparison.Ordinal
+                )
+                && _deityAttack == deity.Attack
+                && _deityHealth == deity.Health
+                && _deityIsGolden == deity.IsGolden
+            )
+            {
+                return;
+            }
+
+            _deityCardId = cardId;
+            _deityAttack = deity.Attack;
+            _deityHealth = deity.Health;
+            _deityIsGolden = deity.IsGolden;
+
+            _deityMinion = new BattlegroundsMinion(
+                new BattlegroundsMinionViewModel
+                {
+                    Card = deity.Card,
+                    Attack = deity.Attack,
+                    Health = deity.Health,
+                    IsPremium = deity.IsGolden,
+                    HighlightBuffedStats = false
+                }
+            )
+            {
+                Width = 100,
+                Height = 100,
+                HorizontalAlignment =
+                    HorizontalAlignment.Center,
+                VerticalAlignment =
+                    VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            _deityContainer.Child = _deityMinion;
         }
 
         private void UpdateTrinkets(
@@ -1503,6 +1612,7 @@ namespace FinalStatsPlugin
         public Hearthstone_Deck_Tracker.Hearthstone.Card
             AnomalyCard
         { get; set; }
+        public DeitySnapshot Deity { get; set; }
         public int Placement { get; set; }
         public int? MmrDelta { get; set; }
         public int Turn { get; set; }
