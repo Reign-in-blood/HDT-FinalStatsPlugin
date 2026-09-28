@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 58);
+        public Version Version => new Version(0, 1, 59);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------

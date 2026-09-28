@@ -17,6 +17,8 @@ namespace FinalStatsPlugin
 {
     internal sealed class FinalBoardSummaryOverlay
     {
+        private const double ReferenceWidth = 1920;
+        private const double ReferenceHeight = 1080;
         private const double PanelWidth = 920;
         private const double PanelHeight = 410;
         private const double DuoExtraHeight = 180;
@@ -30,6 +32,8 @@ namespace FinalStatsPlugin
             CreateFrozenBrush(Color.FromRgb(0, 0, 0));
 
         private Border _panel;
+        private Grid _displayHost;
+        private ScaleTransform _displayScale;
         private Brush _soloPanelBackground;
         private StackPanel _board;
         private Grid _footer;
@@ -161,16 +165,30 @@ namespace FinalStatsPlugin
                 Visibility = Visibility.Collapsed
             };
 
-            Panel.SetZIndex(_panel, 995);
-            Core.OverlayCanvas.Children.Add(_panel);
+            _displayScale = new ScaleTransform(1.0, 1.0);
+
+            _displayHost = new Grid
+            {
+                Width = PanelWidth,
+                Height = PanelHeight,
+                RenderTransform = _displayScale,
+                RenderTransformOrigin = new Point(0, 0),
+                IsHitTestVisible = false
+            };
+            _displayHost.Children.Add(_panel);
+
+            Panel.SetZIndex(_displayHost, 995);
+            Core.OverlayCanvas.Children.Add(_displayHost);
         }
 
         public void Remove()
         {
-            if (_panel != null)
-                Core.OverlayCanvas.Children.Remove(_panel);
+            if (_displayHost != null)
+                Core.OverlayCanvas.Children.Remove(_displayHost);
 
             _panel = null;
+            _displayHost = null;
+            _displayScale = null;
             _soloPanelBackground = null;
             _board = null;
             _footer = null;
@@ -598,6 +616,10 @@ namespace FinalStatsPlugin
 
             _panel.Height = PanelHeight
                 + (isDuos ? DuoExtraHeight : 0);
+
+            if (_displayHost != null)
+                _displayHost.Height = _panel.Height;
+
             _partnerRow.Height = new GridLength(
                 isDuos ? DuoExtraHeight : 0
             );
@@ -935,16 +957,47 @@ namespace FinalStatsPlugin
 
         public void Position()
         {
-            if (_panel == null)
+            if (_panel == null || _displayHost == null)
                 return;
 
+            double overlayWidth =
+                Core.OverlayCanvas?.ActualWidth ?? 0;
+            double overlayHeight =
+                Core.OverlayCanvas?.ActualHeight ?? 0;
+
+            double scale =
+                overlayHeight > 0
+                    ? overlayHeight / ReferenceHeight
+                    : 1.0;
+
+            double centerX =
+                overlayWidth > 0
+                    ? overlayWidth / 2.0
+                    : ReferenceWidth / 2.0;
+
+            double left =
+                centerX
+                + (
+                    PanelLeft
+                    - ReferenceWidth / 2.0
+                )
+                * scale;
+
+            double top = PanelTop * scale;
+
+            if (_displayScale != null)
+            {
+                _displayScale.ScaleX = scale;
+                _displayScale.ScaleY = scale;
+            }
+
             Canvas.SetLeft(
-                _panel,
-                System.Math.Max(0, PanelLeft)
+                _displayHost,
+                System.Math.Max(0, left)
             );
             Canvas.SetTop(
-                _panel,
-                System.Math.Max(0, PanelTop)
+                _displayHost,
+                System.Math.Max(0, top)
             );
         }
 
