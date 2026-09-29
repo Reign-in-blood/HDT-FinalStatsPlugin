@@ -58,7 +58,6 @@ Examples include:
 - highest minion Attack;
 - highest minion Health;
 - highest combined minion stats;
-- Tavern buff values when detectable;
 - spell-related Tavern buff values when detectable;
 - hero damage dealt;
 - maximum hero damage dealt in one combat;
@@ -754,7 +753,6 @@ Played spells
 Highest creature
 Highest ATK
 Highest HP
-Tavern buff max
 Spell power buff
 Hero damage dealt
 Max damage dealt
@@ -871,13 +869,16 @@ Do not combine Attack from one minion and Health from another to create a fake â
 
 Exclude irrelevant temporary or non-board entities when appropriate.
 
-### 11.7 Tavern buffs
+### 11.7 Tavern spell buff
 
-The Tavern buff counters depend on data exposed by Hearthstone and HDT.
+The remaining Tavern spell buff tracks the player's validated Tavern spell
+Attack and Health increase tags.
 
-Known issue:
-
-- HDT's own Tavern buff information may stop working after a Hearthstone patch.
+The former `Tavern buff max` statistic and its HDT
+`RandomTavernMinionBuffCounter` tracker were intentionally removed because
+that value was not reliable. Do not reintroduce that tracker unless the user
+explicitly requests a new implementation and it is validated against current
+Hearthstone/HDT behavior.
 
 Rules:
 
