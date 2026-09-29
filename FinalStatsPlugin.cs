@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 60);
+        public Version Version => new Version(0, 1, 61);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -3960,6 +3960,18 @@ namespace FinalStatsPlugin
                                 _settings?.FinalBoardMode
                                 ?? FinalBoardDisplayMode.Compact,
                             GoldSpent = _goldSpent,
+                            TavernRolls = _tavernRolls,
+                            FreeRollsGained =
+                                _freeRollsObtained,
+                            CardsBought = _cardsBought,
+                            MinionsBought = _minionsBought,
+                            SpellsBought = _spellsBought,
+                            CardsPlayed = _cardsPlayed,
+                            MinionsPlayed = _minionsPlayed,
+                            SpellsPlayed = _playedSpells,
+                            CombatWins = _combatWins,
+                            CombatLosses = _combatLosses,
+                            CombatDraws = _combatDraws,
                             IsDuosMatch =
                                 _duosFinalBoardTracker
                                     .IsDuosMatch,

@@ -25,13 +25,37 @@ namespace FinalStatsPlugin
         private const double DetailedExtraHeight = PanelHeight;
         private const double DuoExtraHeight = 180;
         private const double PanelTop = 85;
-        private const double PanelLeft = 305;
+        private const double PanelLeft = 304;
         private const double MinionSize = 134; //Taille des Minions
         private const string PluginDisplayName =
             "Battlegrounds Final Stats";
 
         private static readonly Brush DuoPanelBrush =
             CreateFrozenBrush(Color.FromRgb(0, 0, 0));
+
+        private static readonly Brush DetailedDividerBrush =
+            CreateFrozenBrush(Color.FromArgb(28, 255, 255, 255));
+
+        private static readonly Brush DetailedTitleBrush =
+            CreateFrozenBrush(Color.FromRgb(218, 184, 108));
+
+        private static readonly Brush DetailedCategoryBrush =
+            CreateFrozenBrush(Color.FromRgb(184, 157, 99));
+
+        private static readonly Brush DetailedLabelBrush =
+            CreateFrozenBrush(Color.FromRgb(178, 184, 191));
+
+        private static readonly Brush DetailedValueBrush =
+            CreateFrozenBrush(Color.FromRgb(238, 241, 244));
+
+        private static readonly Brush DetailedPositiveBrush =
+            CreateFrozenBrush(Color.FromRgb(91, 203, 154));
+
+        private static readonly Brush DetailedNegativeBrush =
+            CreateFrozenBrush(Color.FromRgb(240, 123, 123));
+
+        private static readonly Brush DetailedNeutralBrush =
+            CreateFrozenBrush(Color.FromRgb(154, 161, 169));
 
         private Border _panel;
         private Grid _displayHost;
@@ -46,6 +70,17 @@ namespace FinalStatsPlugin
         private RowDefinition _detailedStatsRow;
         private Border _detailedStatsArea;
         private TextBlock _detailedGoldSpentValue;
+        private TextBlock _detailedTavernRollsValue;
+        private TextBlock _detailedFreeRollsValue;
+        private TextBlock _detailedCardsBoughtValue;
+        private TextBlock _detailedMinionsBoughtValue;
+        private TextBlock _detailedSpellsBoughtValue;
+        private TextBlock _detailedCardsPlayedValue;
+        private TextBlock _detailedMinionsPlayedValue;
+        private TextBlock _detailedSpellsPlayedValue;
+        private TextBlock _detailedCombatWinsValue;
+        private TextBlock _detailedCombatLossesValue;
+        private TextBlock _detailedCombatDrawsValue;
         private CardImage _heroPortrait;
         private Border _heroPowerContainer;
         private HeroPower _heroPower;
@@ -214,6 +249,17 @@ namespace FinalStatsPlugin
             _detailedStatsRow = null;
             _detailedStatsArea = null;
             _detailedGoldSpentValue = null;
+            _detailedTavernRollsValue = null;
+            _detailedFreeRollsValue = null;
+            _detailedCardsBoughtValue = null;
+            _detailedMinionsBoughtValue = null;
+            _detailedSpellsBoughtValue = null;
+            _detailedCardsPlayedValue = null;
+            _detailedMinionsPlayedValue = null;
+            _detailedSpellsPlayedValue = null;
+            _detailedCombatWinsValue = null;
+            _detailedCombatLossesValue = null;
+            _detailedCombatDrawsValue = null;
             _heroPortrait = null;
             _heroPowerContainer = null;
             _heroPower = null;
@@ -668,7 +714,9 @@ namespace FinalStatsPlugin
             {
                 _footer.RenderTransform = new TranslateTransform(
                     0,
-                    7 + (isDuos ? DuoExtraHeight : -15)
+                    7
+                    + (isDuos ? DuoExtraHeight : -15)
+                    + (isDetailed ? DetailedExtraHeight : 0)
                 );
             }
         }
@@ -735,32 +783,64 @@ namespace FinalStatsPlugin
 
         private Border CreateDetailedStatsArea()
         {
-            StackPanel content = new StackPanel
+            Grid content = new Grid
             {
-                Margin = new Thickness(48, 34, 48, 34),
+                Margin = new Thickness(48, 28, 48, 28),
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
                 IsHitTestVisible = false
             };
 
-            content.Children.Add(
-                new TextBlock
+            content.RowDefinitions.Add(
+                new RowDefinition
                 {
-                    Text = "MATCH STATS",
-                    Foreground = CreateFrozenBrush(
-                        Color.FromRgb(184, 157, 99)
-                    ),
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontSize = 16,
-                    FontWeight = FontWeights.SemiBold,
-                    Margin = new Thickness(0, 0, 0, 22),
-                    IsHitTestVisible = false
+                    Height = GridLength.Auto
+                }
+            );
+            content.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = GridLength.Auto
+                }
+            );
+            content.RowDefinitions.Add(
+                new RowDefinition
+                {
+                    Height = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
                 }
             );
 
-            Grid goldRow = new Grid
+            TextBlock title = new TextBlock
             {
+                Text = "FINAL STATS",
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = DetailedTitleBrush,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(2, 0, 0, 4),
+                SnapsToDevicePixels = true,
                 IsHitTestVisible = false
             };
-            goldRow.ColumnDefinitions.Add(
+
+            Border separator = new Border
+            {
+                Height = 1,
+                Background = DetailedDividerBrush,
+                Margin = new Thickness(0, 0, 0, 8),
+                IsHitTestVisible = false
+            };
+
+            Grid statsGrid = new Grid
+            {
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
+                IsHitTestVisible = false
+            };
+            statsGrid.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
                     Width = new GridLength(
@@ -769,42 +849,138 @@ namespace FinalStatsPlugin
                     )
                 }
             );
-            goldRow.ColumnDefinitions.Add(
+            statsGrid.ColumnDefinitions.Add(
                 new ColumnDefinition
                 {
-                    Width = GridLength.Auto
+                    Width = new GridLength(36)
+                }
+            );
+            statsGrid.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
                 }
             );
 
-            TextBlock goldLabel = new TextBlock
+            StackPanel leftColumn = new StackPanel
             {
-                Text = "Gold spent",
-                Foreground = Brushes.White,
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 18,
-                VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
 
-            _detailedGoldSpentValue = new TextBlock
+            leftColumn.Children.Add(
+                CreateDetailedCategoryHeader(
+                    "GLOBAL STATS",
+                    0
+                )
+            );
+            AddDetailedStatRow(
+                leftColumn,
+                "Gold spent",
+                out _detailedGoldSpentValue
+            );
+            AddDetailedStatRow(
+                leftColumn,
+                "Tavern rolls",
+                out _detailedTavernRollsValue
+            );
+            AddDetailedStatRow(
+                leftColumn,
+                "Free rolls gained",
+                out _detailedFreeRollsValue
+            );
+
+            leftColumn.Children.Add(
+                CreateDetailedCategoryHeader(
+                    "BOUGHT CARDS",
+                    10
+                )
+            );
+            AddDetailedStatRow(
+                leftColumn,
+                "Cards bought",
+                out _detailedCardsBoughtValue
+            );
+            AddDetailedStatRow(
+                leftColumn,
+                "Minions bought",
+                out _detailedMinionsBoughtValue
+            );
+            AddDetailedStatRow(
+                leftColumn,
+                "Spells bought",
+                out _detailedSpellsBoughtValue
+            );
+
+            StackPanel rightColumn = new StackPanel
             {
-                Text = "0",
-                Foreground = CreateFrozenBrush(
-                    Color.FromRgb(218, 184, 108)
-                ),
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 24,
-                FontWeight = FontWeights.SemiBold,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
             };
 
-            Grid.SetColumn(goldLabel, 0);
-            Grid.SetColumn(_detailedGoldSpentValue, 1);
-            goldRow.Children.Add(goldLabel);
-            goldRow.Children.Add(_detailedGoldSpentValue);
-            content.Children.Add(goldRow);
+            rightColumn.Children.Add(
+                CreateDetailedCategoryHeader(
+                    "PLAYED CARDS",
+                    0
+                )
+            );
+            AddDetailedStatRow(
+                rightColumn,
+                "Played cards",
+                out _detailedCardsPlayedValue
+            );
+            AddDetailedStatRow(
+                rightColumn,
+                "Played minions",
+                out _detailedMinionsPlayedValue
+            );
+            AddDetailedStatRow(
+                rightColumn,
+                "Played spells",
+                out _detailedSpellsPlayedValue
+            );
+
+            rightColumn.Children.Add(
+                CreateDetailedCategoryHeader(
+                    "COMBATS",
+                    10
+                )
+            );
+            AddDetailedStatRow(
+                rightColumn,
+                "Combat wins",
+                out _detailedCombatWinsValue
+            );
+            AddDetailedStatRow(
+                rightColumn,
+                "Combat losses",
+                out _detailedCombatLossesValue
+            );
+            AddDetailedStatRow(
+                rightColumn,
+                "Combat draws",
+                out _detailedCombatDrawsValue
+            );
+
+            _detailedCombatWinsValue.Foreground =
+                DetailedPositiveBrush;
+            _detailedCombatLossesValue.Foreground =
+                DetailedNegativeBrush;
+            _detailedCombatDrawsValue.Foreground =
+                DetailedNeutralBrush;
+
+            Grid.SetColumn(leftColumn, 0);
+            Grid.SetColumn(rightColumn, 2);
+            statsGrid.Children.Add(leftColumn);
+            statsGrid.Children.Add(rightColumn);
+
+            Grid.SetRow(title, 0);
+            Grid.SetRow(separator, 1);
+            Grid.SetRow(statsGrid, 2);
+            content.Children.Add(title);
+            content.Children.Add(separator);
+            content.Children.Add(statsGrid);
 
             return new Border
             {
@@ -815,16 +991,201 @@ namespace FinalStatsPlugin
             };
         }
 
+        private static Grid CreateDetailedCategoryHeader(
+            string title,
+            double topMargin)
+        {
+            Grid header = new Grid
+            {
+                Height = 20,
+                Margin = new Thickness(0, topMargin, 0, 0),
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
+                IsHitTestVisible = false
+            };
+
+            header.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = GridLength.Auto
+                }
+            );
+            header.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
+                }
+            );
+
+            TextBlock headerText = new TextBlock
+            {
+                Text = title,
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = DetailedCategoryBrush,
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0),
+                SnapsToDevicePixels = true,
+                IsHitTestVisible = false
+            };
+
+            Border line = new Border
+            {
+                Height = 1,
+                Background = DetailedDividerBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            Grid.SetColumn(headerText, 0);
+            Grid.SetColumn(line, 1);
+            header.Children.Add(headerText);
+            header.Children.Add(line);
+            return header;
+        }
+
+        private static void AddDetailedStatRow(
+            Panel parent,
+            string label,
+            out TextBlock value)
+        {
+            Grid row = new Grid
+            {
+                Height = 23,
+                SnapsToDevicePixels = true,
+                UseLayoutRounding = true,
+                IsHitTestVisible = false
+            };
+
+            row.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
+                }
+            );
+            row.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(92)
+                }
+            );
+
+            TextBlock labelText = new TextBlock
+            {
+                Text = label,
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = DetailedLabelBrush,
+                FontSize = 12,
+                FontWeight = FontWeights.Medium,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                SnapsToDevicePixels = true,
+                IsHitTestVisible = false
+            };
+
+            value = new TextBlock
+            {
+                Text = "0",
+                FontFamily = new FontFamily("Segoe UI"),
+                Foreground = DetailedValueBrush,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Right,
+                SnapsToDevicePixels = true,
+                IsHitTestVisible = false
+            };
+
+            Typography.SetNumeralAlignment(
+                value,
+                FontNumeralAlignment.Tabular
+            );
+            Typography.SetNumeralStyle(
+                value,
+                FontNumeralStyle.Lining
+            );
+
+            Grid.SetColumn(labelText, 0);
+            Grid.SetColumn(value, 1);
+            row.Children.Add(labelText);
+            row.Children.Add(value);
+            parent.Children.Add(row);
+        }
+
         private void UpdateDetailedStats(
             FinalBoardSummaryData data)
         {
             if (_detailedGoldSpentValue == null)
                 return;
 
-            _detailedGoldSpentValue.Text =
-                (data?.GoldSpent ?? 0).ToString(
-                    CultureInfo.InvariantCulture
-                );
+            SetDetailedValue(
+                _detailedGoldSpentValue,
+                data?.GoldSpent ?? 0
+            );
+            SetDetailedValue(
+                _detailedTavernRollsValue,
+                data?.TavernRolls ?? 0
+            );
+            SetDetailedValue(
+                _detailedFreeRollsValue,
+                data?.FreeRollsGained ?? 0
+            );
+            SetDetailedValue(
+                _detailedCardsBoughtValue,
+                data?.CardsBought ?? 0
+            );
+            SetDetailedValue(
+                _detailedMinionsBoughtValue,
+                data?.MinionsBought ?? 0
+            );
+            SetDetailedValue(
+                _detailedSpellsBoughtValue,
+                data?.SpellsBought ?? 0
+            );
+            SetDetailedValue(
+                _detailedCardsPlayedValue,
+                data?.CardsPlayed ?? 0
+            );
+            SetDetailedValue(
+                _detailedMinionsPlayedValue,
+                data?.MinionsPlayed ?? 0
+            );
+            SetDetailedValue(
+                _detailedSpellsPlayedValue,
+                data?.SpellsPlayed ?? 0
+            );
+            SetDetailedValue(
+                _detailedCombatWinsValue,
+                data?.CombatWins ?? 0
+            );
+            SetDetailedValue(
+                _detailedCombatLossesValue,
+                data?.CombatLosses ?? 0
+            );
+            SetDetailedValue(
+                _detailedCombatDrawsValue,
+                data?.CombatDraws ?? 0
+            );
+        }
+
+        private static void SetDetailedValue(
+            TextBlock target,
+            int value)
+        {
+            if (target == null)
+                return;
+
+            target.Text = value.ToString(
+                CultureInfo.InvariantCulture
+            );
         }
 
         private static void AddHeaderColumn(
@@ -1800,6 +2161,17 @@ namespace FinalStatsPlugin
         public TimeSpan Duration { get; set; }
         public FinalBoardDisplayMode DisplayMode { get; set; }
         public int GoldSpent { get; set; }
+        public int TavernRolls { get; set; }
+        public int FreeRollsGained { get; set; }
+        public int CardsBought { get; set; }
+        public int MinionsBought { get; set; }
+        public int SpellsBought { get; set; }
+        public int CardsPlayed { get; set; }
+        public int MinionsPlayed { get; set; }
+        public int SpellsPlayed { get; set; }
+        public int CombatWins { get; set; }
+        public int CombatLosses { get; set; }
+        public int CombatDraws { get; set; }
         public bool IsDuosMatch { get; set; }
         public string PartnerName { get; set; }
         public IReadOnlyList<Entity> PartnerBoardEntities
