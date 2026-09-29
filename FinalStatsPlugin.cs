@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 61);
+        public Version Version => new Version(0, 1, 62);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -44,7 +44,7 @@ namespace FinalStatsPlugin
         // ------------------------------------------------------------
 
         private const double PanelWidth = 250;
-        private const double PanelHeight = 750;
+        private const double PanelHeight = 727;
         private const double PanelRight = 15;
         private const double PanelBottom = 50;
         private const double ToggleButtonHeight = 30;
@@ -122,7 +122,6 @@ namespace FinalStatsPlugin
         private TextBlock _combatLossesValue;
         private TextBlock _combatDrawsValue;
         private TextBlock _tavernSpellBuffValue;
-        private TextBlock _tavernMinionBuffValue;
 
         // ------------------------------------------------------------
         // Match state
@@ -208,8 +207,6 @@ namespace FinalStatsPlugin
         private int _combatDraws;
         private int _highestTavernSpellAttack;
         private int _highestTavernSpellHealth;
-        private int _highestTavernMinionAttack;
-        private int _highestTavernMinionHealth;
 
         private int _processedPowerLogLines;
         private int _fallbackResourcesUsed;
@@ -363,7 +360,6 @@ namespace FinalStatsPlugin
                 _combatLossesValue = null;
                 _combatDrawsValue = null;
                 _tavernSpellBuffValue = null;
-                _tavernMinionBuffValue = null;
             });
 
             _duosFinalBoardTracker.Reset();
@@ -680,8 +676,6 @@ namespace FinalStatsPlugin
                 + " | durationStarted=" + _matchDurationStarted
                 + " | spellBuff=" + _highestTavernSpellAttack
                 + "/" + _highestTavernSpellHealth
-                + " | tavernBuff=" + _highestTavernMinionAttack
-                + "/" + _highestTavernMinionHealth
                 + " | duos="
                 + _duosFinalBoardTracker.IsDuosMatch
                 + " | partnerBoard="
@@ -751,8 +745,6 @@ namespace FinalStatsPlugin
             _combatDraws = 0;
             _highestTavernSpellAttack = 0;
             _highestTavernSpellHealth = 0;
-            _highestTavernMinionAttack = 0;
-            _highestTavernMinionHealth = 0;
 
             _processedPowerLogLines = 0;
             _fallbackResourcesUsed = 0;
@@ -2121,125 +2113,6 @@ namespace FinalStatsPlugin
                 );
             }
 
-            TrackOfficialTavernMinionBuffCounter();
-        }
-
-        private void TrackOfficialTavernMinionBuffCounter()
-        {
-            int attack = 0;
-            int health = 0;
-
-            if (!TryGetPlayerStatsCounterValues(
-                    "RandomTavernMinionBuffCounter",
-                    out attack,
-                    out health
-                ))
-            {
-                return;
-            }
-
-            bool changed =
-                attack > _highestTavernMinionAttack
-                || health > _highestTavernMinionHealth;
-
-            _highestTavernMinionAttack = Math.Max(
-                _highestTavernMinionAttack,
-                attack
-            );
-
-            _highestTavernMinionHealth = Math.Max(
-                _highestTavernMinionHealth,
-                health
-            );
-
-            if (changed)
-            {
-                WriteDiagnostic(
-                    "TAVERN MINION BUFF FROM HDT COUNTER"
-                    + " | current=" + attack + "/" + health
-                    + " | max="
-                    + _highestTavernMinionAttack
-                    + "/"
-                    + _highestTavernMinionHealth
-                );
-            }
-        }
-
-        private static bool TryGetPlayerStatsCounterValues(
-            string counterTypeName,
-            out int attack,
-            out int health)
-        {
-            attack = 0;
-            health = 0;
-
-            try
-            {
-                if (Core.Game.CounterManager == null)
-                    return false;
-
-                foreach (
-                    var counter
-                    in Core.Game.CounterManager.PlayerCounters
-                )
-                {
-                    if (
-                        counter == null
-                        || !string.Equals(
-                            counter.GetType().Name,
-                            counterTypeName,
-                            StringComparison.Ordinal
-                        )
-                    )
-                    {
-                        continue;
-                    }
-
-                    string displayedValue =
-                        counter.ValueToShow() ?? string.Empty;
-
-                    MatchCollection numbers = Regex.Matches(
-                        displayedValue,
-                        @"\d+"
-                    );
-
-                    if (numbers.Count < 2)
-                        return false;
-
-                    if (
-                        !int.TryParse(
-                            numbers[0].Value,
-                            NumberStyles.Integer,
-                            CultureInfo.InvariantCulture,
-                            out attack
-                        )
-                        || !int.TryParse(
-                            numbers[1].Value,
-                            NumberStyles.Integer,
-                            CultureInfo.InvariantCulture,
-                            out health
-                        )
-                    )
-                    {
-                        attack = 0;
-                        health = 0;
-                        return false;
-                    }
-
-                    attack = Math.Max(0, attack);
-                    health = Math.Max(0, health);
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteDiagnostic(
-                    "TAVERN MINION BUFF COUNTER ERROR | "
-                    + ex.Message
-                );
-            }
-
-            return false;
         }
 
         private static int GetTagValueByName(
@@ -3324,7 +3197,7 @@ namespace FinalStatsPlugin
                 TextFormattingMode.Display
             );
 
-            for (int i = 0; i < 32; i++)
+            for (int i = 0; i < 31; i++)
             {
                 root.RowDefinitions.Add(
                     new RowDefinition
@@ -3436,17 +3309,16 @@ namespace FinalStatsPlugin
             AddStatRow(root, 20, "Highest HP", out _highestHealthValue);
 
             AddCategoryHeader(root, 21, "BUFFS");
-            AddStatRow(root, 22, "Tavern buff max", out _tavernMinionBuffValue);
-            AddStatRow(root, 23, "Spell power buff", out _tavernSpellBuffValue);
+            AddStatRow(root, 22, "Spell power buff", out _tavernSpellBuffValue);
 
-            AddCategoryHeader(root, 24, "HERO");
-            AddStatRow(root, 25, "Hero damage dealt", out _heroDamageDealtValue);
-            AddStatRow(root, 26, "Max damage dealt", out _maxHeroDamageDealtValue);
-            AddStatRow(root, 27, "Hero damage taken", out _heroDamageTakenValue);
-            AddStatRow(root, 28, "Max damage taken", out _maxHeroDamageTakenValue);
-            AddStatRow(root, 29, "Combat wins", out _combatWinsValue);
-            AddStatRow(root, 30, "Combat losses", out _combatLossesValue);
-            AddStatRow(root, 31, "Combat draws", out _combatDrawsValue);
+            AddCategoryHeader(root, 23, "HERO");
+            AddStatRow(root, 24, "Hero damage dealt", out _heroDamageDealtValue);
+            AddStatRow(root, 25, "Max damage dealt", out _maxHeroDamageDealtValue);
+            AddStatRow(root, 26, "Hero damage taken", out _heroDamageTakenValue);
+            AddStatRow(root, 27, "Max damage taken", out _maxHeroDamageTakenValue);
+            AddStatRow(root, 28, "Combat wins", out _combatWinsValue);
+            AddStatRow(root, 29, "Combat losses", out _combatLossesValue);
+            AddStatRow(root, 30, "Combat draws", out _combatDrawsValue);
 
             _combatWinsValue.Foreground = PositiveBrush;
             _combatLossesValue.Foreground = NegativeBrush;
@@ -3772,13 +3644,6 @@ namespace FinalStatsPlugin
                 FormatPositiveStats(
                     _highestTavernSpellAttack,
                     _highestTavernSpellHealth
-                )
-            );
-            SetValue(
-                _tavernMinionBuffValue,
-                FormatPositiveStats(
-                    _highestTavernMinionAttack,
-                    _highestTavernMinionHealth
                 )
             );
         }
