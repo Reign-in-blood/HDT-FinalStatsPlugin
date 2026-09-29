@@ -9,10 +9,19 @@ namespace FinalStatsPlugin.Settings
         Top1
     }
 
+    public enum FinalBoardDisplayMode
+    {
+        Compact,
+        Detailed
+    }
+
     public sealed class FinalStatsSettings
     {
         public FinalScreenshotPlacementFilter FinalScreenshotOnlyOn
         { get; set; } = FinalScreenshotPlacementFilter.Top3;
+
+        public FinalBoardDisplayMode FinalBoardMode
+        { get; set; } = FinalBoardDisplayMode.Compact;
 
         public int GetFinalScreenshotMaximumPlacement()
         {

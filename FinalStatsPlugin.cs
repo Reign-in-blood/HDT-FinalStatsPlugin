@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 59);
+        public Version Version => new Version(0, 1, 60);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -293,6 +293,8 @@ namespace FinalStatsPlugin
                 "SETTINGS LOADED"
                 + " | finalScreenshotOnlyOn="
                 + _settings.FinalScreenshotOnlyOn
+                + " | finalBoardMode="
+                + _settings.FinalBoardMode
             );
 
             GameEvents.OnGameStart.Add(HandleGameStart);
@@ -381,7 +383,10 @@ namespace FinalStatsPlugin
                     if (_settings == null)
                         _settings = SettingsService.Load();
 
-                    PluginSettingsFlyout.Show(_settings);
+                    PluginSettingsFlyout.Show(
+                        _settings,
+                        HandleSettingsChanged
+                    );
                 });
             }
             catch (Exception ex)
@@ -390,6 +395,18 @@ namespace FinalStatsPlugin
                     "SETTINGS OPEN ERROR | " + ex
                 );
             }
+        }
+
+        private void HandleSettingsChanged()
+        {
+            _finalBoardNeedsRefresh = true;
+
+            WriteDiagnostic(
+                "SETTINGS CHANGED"
+                + " | finalBoardMode="
+                + (_settings?.FinalBoardMode
+                    ?? FinalBoardDisplayMode.Compact)
+            );
         }
 
         // HDT calls this approximately every 100 ms.
@@ -3939,6 +3956,10 @@ namespace FinalStatsPlugin
                             HighestCreatureHealth =
                                 _highestCreatureHealth,
                             Duration = _finalMatchDuration,
+                            DisplayMode =
+                                _settings?.FinalBoardMode
+                                ?? FinalBoardDisplayMode.Compact,
+                            GoldSpent = _goldSpent,
                             IsDuosMatch =
                                 _duosFinalBoardTracker
                                     .IsDuosMatch,

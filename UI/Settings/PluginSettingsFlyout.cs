@@ -14,14 +14,19 @@ namespace FinalStatsPlugin.UI.Settings
         private static object _flyout;
         private static FinalStatsSettings _settings;
         private static ComboBox _finalScreenshotFilter;
+        private static ComboBox _finalBoardDisplayMode;
+        private static Action _settingsChanged;
         private static bool _updatingControls;
 
-        public static void Show(FinalStatsSettings settings)
+        public static void Show(
+            FinalStatsSettings settings,
+            Action settingsChanged = null)
         {
             if (settings == null)
                 throw new ArgumentNullException(nameof(settings));
 
             _settings = settings;
+            _settingsChanged = settingsChanged;
             EnsureFlyout();
             SyncControls();
 
@@ -65,6 +70,8 @@ namespace FinalStatsPlugin.UI.Settings
                 _flyout = null;
                 _settings = null;
                 _finalScreenshotFilter = null;
+                _finalBoardDisplayMode = null;
+                _settingsChanged = null;
                 _updatingControls = false;
             }
         }
@@ -106,7 +113,7 @@ namespace FinalStatsPlugin.UI.Settings
                 "Battlegrounds Final Stats Options";
 
             if (flyout is FrameworkElement flyoutElement)
-                flyoutElement.Width = 360;
+                flyoutElement.Width = 750;
 
             if (flyout is UIElement flyoutUiElement)
                 Panel.SetZIndex(flyoutUiElement, 100);
@@ -178,6 +185,37 @@ namespace FinalStatsPlugin.UI.Settings
                 HandleFinalScreenshotFilterChanged;
 
             root.Children.Add(_finalScreenshotFilter);
+
+            root.Children.Add(
+                new TextBlock
+                {
+                    Text = "Final board format :",
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 14,
+                    Margin = new Thickness(0, 16, 0, 8)
+                }
+            );
+
+            _finalBoardDisplayMode = new ComboBox
+            {
+                Width = 160,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            AddFinalBoardDisplayOption(
+                "Compact",
+                FinalBoardDisplayMode.Compact
+            );
+            AddFinalBoardDisplayOption(
+                "Detailed",
+                FinalBoardDisplayMode.Detailed
+            );
+
+            _finalBoardDisplayMode.SelectionChanged +=
+                HandleFinalBoardDisplayModeChanged;
+
+            root.Children.Add(_finalBoardDisplayMode);
             flyoutControl.Content = root;
 
             ItemsControl flyoutsControl =
@@ -207,11 +245,25 @@ namespace FinalStatsPlugin.UI.Settings
             );
         }
 
+        private static void AddFinalBoardDisplayOption(
+            string label,
+            FinalBoardDisplayMode value)
+        {
+            _finalBoardDisplayMode.Items.Add(
+                new ComboBoxItem
+                {
+                    Content = label,
+                    Tag = value
+                }
+            );
+        }
+
         private static void SyncControls()
         {
             if (
                 _settings == null
                 || _finalScreenshotFilter == null
+                || _finalBoardDisplayMode == null
             )
             {
                 return;
@@ -234,6 +286,22 @@ namespace FinalStatsPlugin.UI.Settings
                     )
                     {
                         _finalScreenshotFilter.SelectedItem =
+                            item;
+                        break;
+                    }
+                }
+
+                foreach (
+                    ComboBoxItem item
+                    in _finalBoardDisplayMode.Items
+                )
+                {
+                    if (
+                        item.Tag is FinalBoardDisplayMode value
+                        && value == _settings.FinalBoardMode
+                    )
+                    {
+                        _finalBoardDisplayMode.SelectedItem =
                             item;
                         break;
                     }
@@ -267,6 +335,31 @@ namespace FinalStatsPlugin.UI.Settings
 
             _settings.FinalScreenshotOnlyOn = filter;
             SettingsService.Save(_settings);
+        }
+
+        private static void HandleFinalBoardDisplayModeChanged(
+            object sender,
+            SelectionChangedEventArgs e)
+        {
+            if (
+                _updatingControls
+                || _settings == null
+                || !(
+                    _finalBoardDisplayMode?.SelectedItem
+                        is ComboBoxItem selectedItem
+                )
+                || !(
+                    selectedItem.Tag
+                        is FinalBoardDisplayMode displayMode
+                )
+            )
+            {
+                return;
+            }
+
+            _settings.FinalBoardMode = displayMode;
+            SettingsService.Save(_settings);
+            _settingsChanged?.Invoke();
         }
 
         private static ItemsControl TryGetHdtFlyoutsControl()

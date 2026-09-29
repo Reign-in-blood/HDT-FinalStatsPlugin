@@ -8,6 +8,8 @@ namespace FinalStatsPlugin.Settings
     {
         private const string FinalScreenshotOnlyOnKey =
             "FinalScreenshotOnlyOn";
+        private const string FinalBoardDisplayModeKey =
+            "FinalBoardDisplayMode";
 
         private static string SettingsPath =>
             Path.Combine(
@@ -70,6 +72,26 @@ namespace FinalStatsPlugin.Settings
                     {
                         settings.FinalScreenshotOnlyOn = filter;
                     }
+
+                    if (
+                        string.Equals(
+                            key,
+                            FinalBoardDisplayModeKey,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        && Enum.TryParse(
+                            value,
+                            true,
+                            out FinalBoardDisplayMode displayMode
+                        )
+                        && Enum.IsDefined(
+                            typeof(FinalBoardDisplayMode),
+                            displayMode
+                        )
+                    )
+                    {
+                        settings.FinalBoardMode = displayMode;
+                    }
                 }
             }
             catch (Exception ex)
@@ -101,6 +123,10 @@ namespace FinalStatsPlugin.Settings
                     FinalScreenshotOnlyOnKey
                     + "="
                     + settings.FinalScreenshotOnlyOn
+                    + Environment.NewLine
+                    + FinalBoardDisplayModeKey
+                    + "="
+                    + settings.FinalBoardMode
                     + Environment.NewLine
                 );
             }

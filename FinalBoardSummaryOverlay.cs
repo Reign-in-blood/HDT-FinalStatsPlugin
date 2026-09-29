@@ -1,3 +1,4 @@
+using FinalStatsPlugin.Settings;
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Controls;
 using Hearthstone_Deck_Tracker.Hearthstone;
@@ -21,9 +22,10 @@ namespace FinalStatsPlugin
         private const double ReferenceHeight = 1080;
         private const double PanelWidth = 920;
         private const double PanelHeight = 410;
+        private const double DetailedExtraHeight = PanelHeight;
         private const double DuoExtraHeight = 180;
         private const double PanelTop = 85;
-        private const double PanelLeft = 307;
+        private const double PanelLeft = 305;
         private const double MinionSize = 134; //Taille des Minions
         private const string PluginDisplayName =
             "Battlegrounds Final Stats";
@@ -41,6 +43,9 @@ namespace FinalStatsPlugin
         private Grid _partnerArea;
         private StackPanel _partnerBoard;
         private TextBlock _partnerNameValue;
+        private RowDefinition _detailedStatsRow;
+        private Border _detailedStatsArea;
+        private TextBlock _detailedGoldSpentValue;
         private CardImage _heroPortrait;
         private Border _heroPowerContainer;
         private HeroPower _heroPower;
@@ -120,10 +125,17 @@ namespace FinalStatsPlugin
             };
             root.RowDefinitions.Add(_partnerRow);
 
+            _detailedStatsRow = new RowDefinition
+            {
+                Height = new GridLength(0)
+            };
+            root.RowDefinitions.Add(_detailedStatsRow);
+
             Grid header = CreateHeader();
             FrameworkElement heroDetails = CreateHeroDetails();
             FrameworkElement boardArea = CreateBoardArea();
             _partnerArea = CreatePartnerArea();
+            _detailedStatsArea = CreateDetailedStatsArea();
             Border headerBar = new Border
             {
                 Padding = new Thickness(16, 4, 16, 4),
@@ -136,14 +148,17 @@ namespace FinalStatsPlugin
             Grid.SetRow(headerBar, 1);
             Grid.SetRow(boardArea, 2);
             Grid.SetRow(_partnerArea, 3);
+            Grid.SetRow(_detailedStatsArea, 4);
             Panel.SetZIndex(headerBar, 0);
             Panel.SetZIndex(boardArea, 5);
             Panel.SetZIndex(heroDetails, 10);
             Panel.SetZIndex(_partnerArea, 5);
+            Panel.SetZIndex(_detailedStatsArea, 5);
             root.Children.Add(heroDetails);
             root.Children.Add(headerBar);
             root.Children.Add(boardArea);
             root.Children.Add(_partnerArea);
+            root.Children.Add(_detailedStatsArea);
 
             _soloPanelBackground = CreatePanelBackground();
 
@@ -196,6 +211,9 @@ namespace FinalStatsPlugin
             _partnerArea = null;
             _partnerBoard = null;
             _partnerNameValue = null;
+            _detailedStatsRow = null;
+            _detailedStatsArea = null;
+            _detailedGoldSpentValue = null;
             _heroPortrait = null;
             _heroPowerContainer = null;
             _heroPower = null;
@@ -234,6 +252,7 @@ namespace FinalStatsPlugin
         {
             EnsureCreated();
             UpdateDuosPresentation(data);
+            UpdateDetailedStats(data);
             UpdateHeader(data);
             UpdateFooter(data);
             UpdateHeroPortrait(data);
@@ -613,9 +632,13 @@ namespace FinalStatsPlugin
             FinalBoardSummaryData data)
         {
             bool isDuos = data?.IsDuosMatch == true;
+            bool isDetailed =
+                data?.DisplayMode
+                    == FinalBoardDisplayMode.Detailed;
 
             _panel.Height = PanelHeight
-                + (isDuos ? DuoExtraHeight : 0);
+                + (isDuos ? DuoExtraHeight : 0)
+                + (isDetailed ? DetailedExtraHeight : 0);
 
             if (_displayHost != null)
                 _displayHost.Height = _panel.Height;
@@ -627,8 +650,17 @@ namespace FinalStatsPlugin
                 isDuos
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+
+            _detailedStatsRow.Height = new GridLength(
+                isDetailed ? DetailedExtraHeight : 0
+            );
+            _detailedStatsArea.Visibility =
+                isDetailed
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
             _panel.Background =
-                isDuos
+                isDuos || isDetailed
                     ? DuoPanelBrush
                     : _soloPanelBackground;
 
@@ -699,6 +731,100 @@ namespace FinalStatsPlugin
                     }
                 );
             }
+        }
+
+        private Border CreateDetailedStatsArea()
+        {
+            StackPanel content = new StackPanel
+            {
+                Margin = new Thickness(48, 34, 48, 34),
+                IsHitTestVisible = false
+            };
+
+            content.Children.Add(
+                new TextBlock
+                {
+                    Text = "MATCH STATS",
+                    Foreground = CreateFrozenBrush(
+                        Color.FromRgb(184, 157, 99)
+                    ),
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize = 16,
+                    FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(0, 0, 0, 22),
+                    IsHitTestVisible = false
+                }
+            );
+
+            Grid goldRow = new Grid
+            {
+                IsHitTestVisible = false
+            };
+            goldRow.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = new GridLength(
+                        1,
+                        GridUnitType.Star
+                    )
+                }
+            );
+            goldRow.ColumnDefinitions.Add(
+                new ColumnDefinition
+                {
+                    Width = GridLength.Auto
+                }
+            );
+
+            TextBlock goldLabel = new TextBlock
+            {
+                Text = "Gold spent",
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 18,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            _detailedGoldSpentValue = new TextBlock
+            {
+                Text = "0",
+                Foreground = CreateFrozenBrush(
+                    Color.FromRgb(218, 184, 108)
+                ),
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 24,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false
+            };
+
+            Grid.SetColumn(goldLabel, 0);
+            Grid.SetColumn(_detailedGoldSpentValue, 1);
+            goldRow.Children.Add(goldLabel);
+            goldRow.Children.Add(_detailedGoldSpentValue);
+            content.Children.Add(goldRow);
+
+            return new Border
+            {
+                Background = DuoPanelBrush,
+                Child = content,
+                IsHitTestVisible = false,
+                Visibility = Visibility.Collapsed
+            };
+        }
+
+        private void UpdateDetailedStats(
+            FinalBoardSummaryData data)
+        {
+            if (_detailedGoldSpentValue == null)
+                return;
+
+            _detailedGoldSpentValue.Text =
+                (data?.GoldSpent ?? 0).ToString(
+                    CultureInfo.InvariantCulture
+                );
         }
 
         private static void AddHeaderColumn(
@@ -1672,6 +1798,8 @@ namespace FinalStatsPlugin
         public int HighestCreatureAttack { get; set; }
         public int HighestCreatureHealth { get; set; }
         public TimeSpan Duration { get; set; }
+        public FinalBoardDisplayMode DisplayMode { get; set; }
+        public int GoldSpent { get; set; }
         public bool IsDuosMatch { get; set; }
         public string PartnerName { get; set; }
         public IReadOnlyList<Entity> PartnerBoardEntities
