@@ -36,7 +36,7 @@ namespace FinalStatsPlugin
 
         public string ButtonText => "Options";
         public string Author => "Benito";
-        public Version Version => new Version(0, 1, 62);
+        public Version Version => new Version(0, 1, 63);
         public MenuItem MenuItem => null;
 
         // ------------------------------------------------------------
@@ -1705,12 +1705,14 @@ namespace FinalStatsPlugin
                 }
                 else if (freeRefreshesConsumed > 0)
                 {
-                    // Fallback when HDT misses the very short shop replacement.
-                    _tavernRolls += freeRefreshesConsumed;
-
+                    // BACON_FREE_REFRESH_COUNT is the number of free refreshes
+                    // currently available. It can drop when unused refreshes
+                    // expire or are reset at the phase transition. A decrease
+                    // without a refresh action or a real shop replacement is
+                    // therefore not proof that the player rolled.
                     WriteDiagnostic(
-                        "TAVERN ROLL FROM FREE REFRESH DECREASE | count="
-                        + freeRefreshesConsumed
+                        "FREE REFRESH DECREASE WITHOUT ROLL IGNORED"
+                        + " | count=" + freeRefreshesConsumed
                     );
                 }
 
